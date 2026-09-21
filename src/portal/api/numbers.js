@@ -59,21 +59,60 @@ export async function buyNumber(data) {
   return api.post("/user/purchase-number", data);
 }
 
-// Renew a number
-export async function renewNumber(numberId, { plan }) {
+// Get extension plans and pricing for a number
+export async function getNumberExtensionPlans(numberId) {
   try {
-    console.log("Renewing number:", numberId, { rent_time_id: plan });
-    // Get current number to find mobile_number_type_id
+    console.log("Fetching renewal plans for number:", numberId);
+    const numbers = await getNumbers();
+    const number = numbers.find(n => n.id === numberId);
+
+    if (!number) {
+      throw new Error("Number not found");
+    }
+
+    // Map type to mobile_number_type_id: "private" → 2, "shared" → 1
+    let typeId = number?.mobile_number_type_id;
+    if (!typeId) {
+      const typeStr = (number?.type || "").toLowerCase();
+      typeId = typeStr.includes("private") ? 2 : 1;
+    }
+
+    console.log("Number type mapping:", { type: number?.type, typeId });
+
+    const response = await api.post(`/user/extent-number-price`, {
+      mobile_number_id: numberId,
+      mobile_number_type_id: typeId
+    });
+
+    console.log("Renewal plans response:", response);
+
+    if (response?.plans && Array.isArray(response.plans)) {
+      console.log("✓ Got renewal plans:", response.plans);
+      return response.plans;
+    }
+
+    return [];
+  } catch (err) {
+    console.error("Renewal plans error:", err.message);
+    // Return empty array on error - modal will use fallback pricing
+    return [];
+  }
+}
+
+// Extend a number
+export async function extendNumber(numberId, { plan }) {
+  try {
+    console.log("Extending number:", numberId, { plan });
     const numbers = await getNumbers();
     const number = numbers.find(n => n.id === numberId);
     return api.post(`/user/extent-number`, {
       mobile_number_id: numberId,
       mobile_number_type_id: number?.mobile_number_type_id || 1,
-      rent_time_id: plan
+      plan: plan
     });
   } catch (err) {
-    console.error("Renew error:", err.status, err.body, err.message);
-    throw new Error(`Number renewal failed: ${err.body?.message || err.message}`);
+    console.error("Extend error:", err.status, err.body, err.message);
+    throw new Error(`Number extension failed: ${err.body?.message || err.message}`);
   }
 }
 
@@ -97,8 +136,21 @@ export async function releaseNumber(numberId) {
 export async function renameNumber(numberId, label) {
   try {
     console.log("Renaming number:", numberId, { label });
-    // Note: Old app doesn't have rename endpoint, simulating success
-    return { status: "success", data: "Label updated" };
+    const numbers = await getNumbers();
+    const number = numbers.find(n => n.id === numberId);
+
+    if (!number) {
+      throw new Error("Number not found");
+    }
+
+    // Determine type: "private" or "shared"
+    const type = number.type === "private" ? "private" : "shared";
+
+    return api.post(`/user/set-label`, {
+      number_id: numberId,
+      type: type,
+      label: label || null
+    });
   } catch (err) {
     console.error("Rename error:", err.status, err.body, err.message);
     throw new Error(`Failed to rename number: ${err.body?.message || err.message}`);

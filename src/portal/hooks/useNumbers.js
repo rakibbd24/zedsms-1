@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buyNumber, getNumbers, releaseNumber, renameNumber, renewNumber, transferNumber, updateAutoRenew, sendSmsFromNumber } from "../api/numbers";
+import { buyNumber, getNumbers, getNumberExtensionPlans, releaseNumber, renameNumber, extendNumber, transferNumber, updateAutoRenew, sendSmsFromNumber } from "../api/numbers";
 
 export function useNumbers() {
   return useQuery({
@@ -23,10 +23,10 @@ export function useBuyNumber() {
   });
 }
 
-export function useRenewNumber() {
+export function useExtendNumber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ numberId, plan }) => renewNumber(numberId, { plan }),
+    mutationFn: ({ numberId, plan }) => extendNumber(numberId, { plan }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }
@@ -71,5 +71,17 @@ export function useSendSmsFromNumber() {
       qc.invalidateQueries({ queryKey: ["messages"] });
       qc.invalidateQueries({ queryKey: ["sent"] });
     },
+  });
+}
+
+export function useNumberExtensionPlans(numberId) {
+  return useQuery({
+    queryKey: ["extension-plans", numberId],
+    queryFn: () => getNumberExtensionPlans(numberId),
+    enabled: !!numberId,
+    select: (data) => {
+      if (Array.isArray(data)) return data;
+      return [];
+    }
   });
 }

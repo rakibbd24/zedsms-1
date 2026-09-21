@@ -10,12 +10,19 @@ import { Modal } from "../components/ui/Modal";
 import { Toast } from "../components/ui/Toast";
 import { COUNTRIES, SERVICES } from "../mocks/seed";
 import { countryRentOf, svcPriceOf, weeklyPriceOf } from "../lib/pricing";
-import { useNumbers, useRenewNumber, useTransferNumber, useRenameNumber, useReleaseNumber, useUpdateAutoRenew, useSendSmsFromNumber } from "../hooks/useNumbers";
+import { useNumbers, useExtendNumber, useTransferNumber, useRenameNumber, useReleaseNumber, useUpdateAutoRenew, useSendSmsFromNumber, useNumberExtensionPlans } from "../hooks/useNumbers";
 import { useMessages, useRecentMessages } from "../hooks/useMessages";
 import { useUser } from "../hooks/useUser";
 
 // ============ HOME / OVERVIEW ============
-// Calendar date a number expires, derived from its days-remaining.
+// Format expiry date from timestamp
+const formatExpiryDate = (expiryTs) => {
+  if (!expiryTs) return "Unknown";
+  const date = new Date(expiryTs);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+// Calendar date a number expires, derived from its days-remaining (fallback)
 const expiryDate = (days) => {
   const d = new Date();
   d.setDate(d.getDate() + (days || 0));
@@ -242,46 +249,107 @@ const RENT_OPTS = [{ d: 7, label: "1 week" }, { d: 14, label: "2 weeks" }, { d: 
 
 const modalInput = { width: "100%", height: 44, padding: "0 14px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text)", fontSize: 14, outline: "none" };
 
-function RenewModal({ number, open, onClose, onConfirm }) {
-  const [days, setDays] = React.useState(30);
-  React.useEffect(() => { if (open) setDays(30); }, [open]);
+function ExtendModal({ number, open, onClose, onConfirm, plans = [], isLoading = false }) {
+  const [selectedPlan, setSelectedPlan] = React.useState(null);
+
+  React.useEffect(() => {
+    if (open && plans.length > 0) {
+      setSelectedPlan(plans[0]);
+    }
+  }, [open, plans]);
+
   if (!open) return null;
-  const weekly = weeklyPriceOf(number);
-  const cost = +(weekly * (days / 7)).toFixed(2);
-  const newTotal = (number.status === "expired" ? 0 : number.days) + days;
+
+  // Calculate discount based on base monthly price
+  const getMonthsForTerm = (terms) => {
+    const t = (terms || "").toUpperCase().trim();
+    if (t === "ANNUAL" || t.includes("ANNUALLY")) return 12;
+    if (t === "SIX_MONTHLY" || t.includes("SIX")) return 6;
+    if (t === "QUARTERLY" || t.includes("QUARTER")) return 3;
+    if (t === "MONTHLY" || t.includes("MONTH")) return 1;
+    return 1;
+  };
+
+  const monthlyPlan = plans.find(p => (p.terms || "").toUpperCase().includes("MONTHLY"));
+  const baseMonthlyPrice = monthlyPlan ? parseFloat(monthlyPlan.cost) : null;
+
+  const getDiscount = (planCost, planTerms) => {
+    if (!baseMonthlyPrice) return null;
+    const months = getMonthsForTerm(planTerms);
+    if (months === 1) return null; // No discount for monthly
+
+    const cost = parseFloat(planCost);
+    const costPerMonth = cost / months;
+    const savings = baseMonthlyPrice - costPerMonth;
+
+    // Only show discount if there's meaningful savings (at least 0.1%)
+    if (savings > 0.001) {
+      const discountPercent = (savings / baseMonthlyPrice) * 100;
+      return Math.round(discountPercent);
+    }
+    return null;
+  };
+
+  const plan = selectedPlan || plans[0];
+  const cost = plan ? parseFloat(plan.cost) : 0;
+
   return (
-    <Modal open={open} onClose={onClose} title={number.status === "expired" ? "Reactivate number" : "Renew number"} subtitle={number.number}>
+    <Modal open={open} onClose={onClose} title={number.status === "expired" ? "Reactivate number" : "Extend number"} subtitle={number.number}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 13px", borderRadius: 11, background: "var(--surface-2)", marginBottom: 14 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-muted)" }}>
           <Badge tone={number.type === "Private" ? "solid" : "accent"}>{number.type}</Badge>
           {number.type === "Private" ? `Priced for ${number.country}` : `${number.service} · shared rate`}
         </span>
-        <span className="mono tnum" style={{ fontSize: 12.5, fontWeight: 600 }}>${weekly.toFixed(2)}<span style={{ color: "var(--text-faint)", fontWeight: 400 }}>/wk</span></span>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 16 }}>
-        {RENT_OPTS.map((o) => {
-          const sel = days === o.d;
-          return (
-            <button key={o.d} onClick={() => setDays(o.d)} style={{ padding: "12px 13px", borderRadius: 12, textAlign: "left", background: sel ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${sel ? "var(--accent-border)" : "var(--border)"}` }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13.5, fontWeight: 550 }}>{o.label}</span>
-                {sel && <span style={{ color: "var(--accent)" }}><Icon name="check" size={15} strokeWidth={2.3} /></span>}
-              </div>
-              <span className="mono tnum" style={{ fontSize: 12, color: sel ? "var(--accent)" : "var(--text-faint)" }}>${(weekly * (o.d / 7)).toFixed(2)}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "11px 14px", borderRadius: 11, background: "var(--surface-2)", marginBottom: 8, fontSize: 13 }}>
-        <span style={{ color: "var(--text-muted)" }}>New expiry</span><span className="mono tnum" style={{ fontWeight: 600 }}>{newTotal} days from now</span>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, padding: "0 2px" }}>
-        <span style={{ fontSize: 13.5, fontWeight: 600 }}>Total</span><span className="mono tnum" style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em" }}>${cost.toFixed(2)}</span>
-      </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <Button full variant="subtle" onClick={onClose}>Cancel</Button>
-        <Button full icon="refresh" onClick={() => onConfirm(days)}>Pay ${cost.toFixed(2)}</Button>
-      </div>
+      {isLoading ? (
+        <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 11, background: "var(--accent-soft)", marginBottom: 18 }}>
+          <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }}><Icon name="info" size={16} /></span>
+          <span style={{ fontSize: 12.5, color: "var(--accent)", lineHeight: 1.5 }}>Loading renewal plans...</span>
+        </div>
+      ) : plans.length > 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 16 }}>
+          {plans.map((p) => {
+            const sel = plan?.rent_time_id === p.rent_time_id;
+            const termLabel = p.terms === "MONTHLY" ? "Monthly" : p.terms === "QUARTERLY" ? "Quarterly" : p.terms === "SIX_MONTHLY" ? "6 Months" : p.terms === "ANNUALLY" ? "Annual" : p.terms;
+            const discount = getDiscount(p.cost, p.terms);
+            return (
+              <button key={p.rent_time_id} onClick={() => setSelectedPlan(p)} style={{ padding: "12px 13px", borderRadius: 12, textAlign: "left", background: sel ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${sel ? "var(--accent-border)" : "var(--border)"}`, position: "relative" }}>
+                {discount && (
+                  <span style={{ position: "absolute", top: -8, right: 8, background: "var(--success)", color: "white", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                    Save {discount}%
+                  </span>
+                )}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 550 }}>{termLabel}</span>
+                  {sel && <span style={{ color: "var(--accent)" }}><Icon name="check" size={15} strokeWidth={2.3} /></span>}
+                </div>
+                <span className="mono tnum" style={{ fontSize: 12, color: sel ? "var(--accent)" : "var(--text-faint)" }}>${p.cost}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 11, background: "var(--danger-soft)", marginBottom: 18 }}>
+          <span style={{ color: "var(--danger)", flexShrink: 0, marginTop: 1 }}><Icon name="info" size={16} /></span>
+          <span style={{ fontSize: 12.5, color: "var(--danger)", lineHeight: 1.5 }}>Renewal plans are not available. Please try again later.</span>
+        </div>
+      )}
+      {plans.length > 0 && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, padding: "0 2px" }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>Total</span><span className="mono tnum" style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em" }}>${cost.toFixed(2)}</span>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button full variant="subtle" onClick={onClose}>Cancel</Button>
+            <Button full icon="refresh" onClick={() => plan && onConfirm(plan.rent_time_id)} disabled={!plan}>Pay ${cost.toFixed(2)}</Button>
+          </div>
+        </>
+      )}
+      {plans.length === 0 && (
+        <div style={{ display: "flex", gap: 10 }}>
+          <Button full variant="subtle" onClick={onClose}>Close</Button>
+        </div>
+      )}
     </Modal>
   );
 }
@@ -388,6 +456,42 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
     return Math.max(0, diffDays);
   };
 
+  // Get formatted time remaining (days, hours, or minutes)
+  const getTimeRemaining = (expiryDate) => {
+    if (!expiryDate) return "0d";
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const diffMs = expiry - today;
+
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.ceil(diffMs / (1000 * 60));
+
+    if (diffDays > 0) return `${diffDays}d`;
+    if (diffHours > 0) return `${diffHours}h`;
+    if (diffMinutes > 0) return `${diffMinutes}m`;
+    if (diffMs > 0) return "1m";
+    return "expired";
+  };
+
+  // Format time as relative (e.g., "2 min ago")
+  const getRelativeTime = (dateString) => {
+    if (!dateString) return "now";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin} min ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
   // Get recent messages to calculate unread counts per number
   const { data: recentMessages = [] } = useRecentMessages();
 
@@ -400,14 +504,27 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
       // Use total_sms_count from API (new endpoint has this built-in)
       const messageCount = n.total_sms_count || 0;
 
+      // Determine type ID: check multiple possible field names
+      let typeId = n.mobile_number_type_id;
+      if (!typeId) {
+        // Map from type field: "private" → 2, "shared" → 1
+        const typeStr = (n.type || "").toLowerCase();
+        typeId = typeStr.includes("private") ? 2 : 1;
+      }
+
+      const isPrivate = typeId === 2;
+
       const normalized = {
         id: n.id,
         iso: n.iso || "GB",
         number: n.number || "",
-        service: n.service_name || (n.type === "private" ? "Private" : "SMS"),
-        type: n.type === "private" ? "Private" : "Shared",
+        service: n.service_name || (isPrivate ? "Private" : "SMS"),
+        type: isPrivate ? "Private" : "Shared",
+        mobile_number_type_id: typeId,
         country: n.country || "Unknown",
         days: daysLeft,
+        timeRemaining: getTimeRemaining(expiryTs),
+        expiresAt: expiryTs,
         status: n.status || (daysLeft > 0 ? "active" : "expired"),
         label: n.label && n.label.trim() !== "" ? n.label : null,
         autoRenew: n.auto_renew === true || n.auto_renew === 1 || false,
@@ -427,7 +544,11 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   }, [numbers, selected, initialNumberId]);
 
   const list = numbers
-    .filter((n) => (filter === "all" ? true : n.status === filter))
+    .filter((n) => {
+      if (filter === "all") return true;
+      if (filter === "expired") return n.status === "expired" || n.status === "disconnected";
+      return n.status === filter;
+    })
     .filter((n) => (typeFilter === "all" ? true : n.type === typeFilter))
     .filter((n) => n.number.includes(query) || n.country.toLowerCase().includes(query.toLowerCase()) || (n.service || "").toLowerCase().includes(query.toLowerCase()) || (n.label || "").toLowerCase().includes(query.toLowerCase()));
   const current = numbers.find((n) => n.id === selected) || list[0];
@@ -435,44 +556,81 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   // Get messages for current number
   const { data: rawMessages = [] } = useMessages(current?.id);
 
-  // Normalize messages from API
-  const thread = React.useMemo(() =>
-    rawMessages.map((m) => ({
-      id: m.id,
-      numberId: current?.id,
-      from: m.from_number || m.from || "Unknown",
-      body: m.message_body || m.body || "",
-      time: m.created_at ? new Date(m.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "now",
-      code: m.otp_code || m.code || "",
-      unread: !m.is_read,
-      color: m.color,
-      letter: (m.from_number || m.from || "U")[0].toUpperCase()
-    })),
-    [rawMessages, current?.id]
-  );
+  // Normalize messages from API - separate incoming and outgoing
+  const { incomingMessages, outgoingMessages } = React.useMemo(() => {
+    const incoming = [];
+    const outgoing = [];
 
-  const sentThread = []; // API doesn't provide sent messages yet
+    const extractCode = (body) => {
+      if (!body) return "";
+      // Match 4-6 digit codes, or codes with dashes like "729-301"
+      const codeMatch = body.match(/(\d{4,6}|\d{3}-\d{3}|\d{2}-\d{4})/);
+      return codeMatch ? codeMatch[0] : "";
+    };
+
+    rawMessages.forEach((m) => {
+      const bodyText = m.sms_content || m.message_body || m.body || "";
+      const normalized = {
+        id: m.id,
+        numberId: current?.id,
+        body: bodyText,
+        time: getRelativeTime(m.created_at || m.date_time),
+        code: m.otp_code || m.code || extractCode(bodyText),
+        unread: !m.is_read,
+        color: m.color
+      };
+
+      // Separate based on direction
+      if (m.direction === "outgoing") {
+        outgoing.push({
+          ...normalized,
+          to: m.to_number || "Unknown",
+          status: m.status === 1 ? "delivered" : "sending"
+        });
+      } else {
+        // For incoming messages, try to extract service name
+        const serviceName = m.service_name ||
+                           (bodyText?.toLowerCase().includes("whatsapp") ? "WhatsApp" :
+                            bodyText?.toLowerCase().includes("instagram") ? "Instagram" :
+                            bodyText?.toLowerCase().includes("uber") ? "Uber" :
+                            bodyText?.toLowerCase().includes("code") || bodyText?.toLowerCase().includes("verification") ? "Verification" :
+                            (m.from_number || m.sms_from || m.from || "Unknown"));
+
+        incoming.push({
+          ...normalized,
+          from: serviceName,
+          letter: serviceName[0].toUpperCase()
+        });
+      }
+    });
+
+    return { incomingMessages: incoming, outgoingMessages: outgoing };
+  }, [rawMessages, current?.id]);
+
+  const thread = incomingMessages;
+  const sentThread = outgoingMessages;
   const isPrivate = !!current && current.type === "Private";
   // reset the message view whenever the selected number changes
   React.useEffect(() => { setMsgTab("inbox"); setMsgQuery(""); }, [selected]);
 
-  // Initialize mutations
-  const renewMutation = useRenewNumber();
+  // Initialize mutations and queries
+  const extendMutation = useExtendNumber();
   const transferMutation = useTransferNumber();
   const renameMutation = useRenameNumber();
   const releaseMutation = useReleaseNumber();
   const autoRenewMutation = useUpdateAutoRenew();
   const sendSmsMutation = useSendSmsFromNumber();
+  const { data: extensionPlans = [], isLoading: extensionPlansLoading } = useNumberExtensionPlans(modal === "renew" ? current?.id : null);
 
   // ---- actions ----
-  const doRenew = (days) => {
+  const doExtend = (rentTimeId) => {
     if (current) {
-      renewMutation.mutate({ numberId: current.id, plan: days }, {
+      extendMutation.mutate({ numberId: current.id, plan: rentTimeId }, {
         onSuccess: () => {
           setModal(null);
-          showToast(`${current.label || current.number} renewed · +${days}d`);
+          showToast(`${current.label || current.number} extended`);
         },
-        onError: () => showToast("Failed to renew number", "danger")
+        onError: () => showToast("Failed to extend number", "danger")
       });
     }
   };
@@ -587,11 +745,15 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
           </div>
           <div style={{ display: "flex", gap: 4, padding: 3, background: "var(--surface-2)", borderRadius: 10 }}>
             <Tab id="active" label="Active" count={numbers.filter((n) => n.status === "active").length} />
-            <Tab id="expired" label="Expired" count={numbers.filter((n) => n.status === "expired").length} />
+            <Tab id="expired" label="Expired" count={numbers.filter((n) => n.status === "expired" || n.status === "disconnected").length} />
             <Tab id="all" label="All" count={numbers.length} />
           </div>
           {(() => {
-            const inStatus = numbers.filter((n) => (filter === "all" ? true : n.status === filter));
+            const inStatus = numbers.filter((n) => {
+              if (filter === "all") return true;
+              if (filter === "expired") return n.status === "expired" || n.status === "disconnected";
+              return n.status === filter;
+            });
             return (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 9, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-faint)", marginRight: 1 }}>Type</span>
@@ -613,12 +775,20 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                 <FlagAvatar iso={n.iso || "GB"} size={38} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="mono tnum" style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: n.status === "expired" ? 0.55 : 1 }}>{n.number}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {n.label && <span style={{ color: "var(--text)", fontWeight: 500 }}>{n.label}</span>}
-                    {n.label && <span style={{ margin: "0 3px" }}>·</span>}
-                    <span>{n.service || "Private"}</span>
-                    <span style={{ margin: "0 3px" }}>·</span>
-                    <span>{n.country}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {n.label ? (
+                      <>
+                        <span style={{ color: "var(--text-faint)" }}>{n.type || "Shared"}</span>
+                        <span style={{ margin: "0 3px", color: "var(--text-faint)" }}>·</span>
+                        <Badge tone="accent" style={{ flexShrink: 0 }}>{n.label}</Badge>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ color: "var(--text-faint)" }}>{n.service || "Private"}</span>
+                        <span style={{ margin: "0 3px", color: "var(--text-faint)" }}>·</span>
+                        <span style={{ color: "var(--text-faint)" }}>{n.country}</span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
@@ -627,7 +797,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                       <Icon name="msg" size={11} strokeWidth={2.2} />{n.unread}
                     </span>
                   )}
-                  {n.status === "expired" ? <Badge tone="neutral">Expired</Badge> : <Badge tone={n.days <= 7 ? "warning" : "success"} className="tnum">{n.days}d left</Badge>}
+                  {n.status === "expired" ? <Badge tone="neutral">Expired</Badge> : <Badge tone={n.days <= 7 ? "warning" : "success"} className="tnum">{n.timeRemaining} left</Badge>}
                 </div>
               </button>
             );
@@ -649,14 +819,12 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                     {current.label && <Badge tone="accent">{current.label}</Badge>}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                    <Badge tone={current.type === "Private" ? "solid" : "accent"}>{current.type}</Badge>
                     {current.service && <Badge tone="neutral">{current.service}</Badge>}
-                    {current.autoRenew && <Badge tone="success" dot>Auto-renew</Badge>}
                     <span style={{ fontSize: 12, color: "var(--text-faint)" }}>{current.country}</span>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, position: "relative" }}>
-                  <Button variant="ghost" size="sm" icon="refresh" onClick={() => setModal("renew")}>{current.status === "expired" ? "Reactivate" : "Renew"}</Button>
+                  <Button variant="ghost" size="sm" icon="refresh" onClick={() => setModal("renew")}>{current.status === "expired" || current.status === "disconnected" ? "Reactivate" : "Extend"}</Button>
                   <Button variant="subtle" size="sm" icon="sliders" iconRight="chevD" onClick={() => setMenuOpen((v) => !v)}>Manage</Button>
                   {menuOpen && (
                     <>
@@ -674,8 +842,8 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 22, marginTop: 16, paddingTop: 15, borderTop: "1px solid var(--border)", flexWrap: "wrap" }}>
-                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>{current.status === "expired" ? "Expired on" : "Expires in"}</div><div className="mono tnum" style={{ fontSize: 15, fontWeight: 600, color: current.status === "expired" ? "var(--danger)" : current.days <= 7 ? "var(--warning)" : "var(--text)" }}>{current.status === "expired" ? expiryDate(current.days) : current.days + " days"}</div>{current.status !== "expired" && <div className="tnum" style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>{expiryDate(current.days)}</div>}</div>
-                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>Status</div><div style={{ fontSize: 13.5, fontWeight: 550, color: current.status === "expired" ? "var(--text-muted)" : "var(--success)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: 99, background: current.status === "expired" ? "var(--text-faint)" : "var(--success)" }} />{current.status === "expired" ? "Inactive" : "Active"}</div></div>
+                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>{current.status === "expired" || current.status === "disconnected" ? "Expired on" : "Expires in"}</div><div className="mono tnum" style={{ fontSize: 15, fontWeight: 600, color: current.status === "expired" || current.status === "disconnected" ? "var(--danger)" : current.days <= 7 ? "var(--warning)" : "var(--text)" }}>{current.status === "expired" || current.status === "disconnected" ? formatExpiryDate(current.expiresAt) : current.days + " days"}</div>{current.status !== "expired" && current.status !== "disconnected" && <div className="tnum" style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>{formatExpiryDate(current.expiresAt)}</div>}</div>
+                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>Status</div><div style={{ fontSize: 13.5, fontWeight: 550, color: current.status === "expired" || current.status === "disconnected" ? "var(--text-muted)" : "var(--success)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: 99, background: current.status === "expired" || current.status === "disconnected" ? "var(--text-faint)" : "var(--success)" }} />{current.status === "expired" || current.status === "disconnected" ? "Inactive" : "Active"}</div></div>
                 <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>Auto-renew</div><div style={{ fontSize: 13.5, fontWeight: 550, color: current.autoRenew ? "var(--success)" : "var(--text-muted)" }}>{current.autoRenew ? "On" : "Off"}</div></div>
               </div>
             </Card>
@@ -743,20 +911,35 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                     <div style={{ maxHeight: "52vh", overflowY: "auto", padding: "6px 8px 10px" }}>
                       {all.length === 0 ? <Empty icon="msg" label="No messages yet — codes appear here instantly" />
                         : rows.length === 0 ? <Empty icon="search" label={`No messages match “${msgQuery}”`} />
-                        : rows.map((m) => (
-                          <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "13px 12px", borderRadius: 12, borderBottom: "1px solid var(--border)", background: m.unread ? "var(--accent-soft)" : "transparent" }}>
-                            <ServiceAvatar color={m.color} letter={m.letter} size={38} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                <span style={{ fontSize: 13.5, fontWeight: 550 }}>{m.from}</span>
-                                <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>· {m.time}</span>
-                                {m.unread && <Badge tone="accent" dot>new</Badge>}
+                        : rows.map((m) => {
+                          const getAvatarColor = (from) => {
+                            const lower = from.toLowerCase();
+                            if (lower.includes("whatsapp")) return "#25D366";
+                            if (lower.includes("instagram")) return "#E4405F";
+                            if (lower.includes("uber")) return "#000000";
+                            if (lower.includes("verif")) return "#6B7280";
+                            return "#3B82F6";
+                          };
+                          const displayText = m.from.startsWith("+") ? m.from.slice(1, 2) : m.from.substring(0, 1);
+                          return (
+                            <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
+                              <div style={{ width: 48, height: 48, borderRadius: 12, background: getAvatarColor(m.from), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <span style={{ fontSize: 20, fontWeight: 600, color: "white" }}>{displayText.toUpperCase()}</span>
                               </div>
-                              <p style={{ margin: m.code ? "0 0 10px" : 0, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 }}>{m.body}</p>
-                              <CodeChip code={m.code} size="md" />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginBottom: 6 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{m.from}</span>
+                                    <span style={{ fontSize: 13, color: "var(--text-faint)" }}>· {m.time}</span>
+                                  </div>
+                                  {m.unread && <Badge tone="accent" dot>new</Badge>}
+                                </div>
+                                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: m.code ? 10 : 0 }}>{m.body}</p>
+                                {m.code && <CodeChip code={m.code} size="md" />}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   </>
                 );
@@ -767,7 +950,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
       </div>
     </div>
 
-    {current && <RenewModal number={current} open={modal === "renew"} onClose={() => setModal(null)} onConfirm={doRenew} />}
+    {current && <ExtendModal number={current} open={modal === "renew"} onClose={() => setModal(null)} onConfirm={doExtend} plans={extensionPlans} isLoading={extensionPlansLoading} />}
     {current && <TransferModal number={current} open={modal === "transfer"} onClose={() => setModal(null)} onConfirm={doTransfer} />}
     {current && <RenameModal number={current} open={modal === "rename"} onClose={() => setModal(null)} onConfirm={doRename} />}
     {current && <ReleaseModal number={current} open={modal === "release"} onClose={() => setModal(null)} onConfirm={doRelease} />}
