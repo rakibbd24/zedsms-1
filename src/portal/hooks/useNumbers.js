@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buyNumber, getNumbers, getNumberExtensionPlans, releaseNumber, renameNumber, extendNumber, transferNumber, updateAutoRenew, sendSmsFromNumber } from "../api/numbers";
+import { getNumbers, getNumberExtensionPlans, releaseNumber, renameNumber, extendNumber, getRestoreNumberPrice, restoreNumber, transferNumber, updateAutoRenew, sendSmsFromNumber } from "../api/numbers";
 
 export function useNumbers() {
   return useQuery({
@@ -15,26 +15,31 @@ export function useNumbers() {
   });
 }
 
-export function useBuyNumber() {
+export function useExtendNumber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: buyNumber,
+    mutationFn: ({ numberId, plan, typeId }) => extendNumber(numberId, { plan, typeId }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }
 
-export function useExtendNumber() {
+export function useRestoreNumber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ numberId, plan }) => extendNumber(numberId, { plan }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
+    mutationFn: (numberId) => restoreNumber(numberId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["numbers"] });
+      // the reactivation fee comes out of the wallet, so the balance is stale too
+      qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+    },
   });
 }
 
 export function useReleaseNumber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: releaseNumber,
+    mutationFn: ({ numberId, typeId }) => releaseNumber(numberId, typeId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }
@@ -42,7 +47,7 @@ export function useReleaseNumber() {
 export function useRenameNumber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ numberId, label }) => renameNumber(numberId, label),
+    mutationFn: ({ numberId, label, typeId }) => renameNumber(numberId, label, typeId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }
@@ -50,7 +55,7 @@ export function useRenameNumber() {
 export function useTransferNumber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ numberId, toZedId }) => transferNumber(numberId, toZedId),
+    mutationFn: ({ numberId, toZedId, typeId }) => transferNumber(numberId, toZedId, typeId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }
@@ -58,7 +63,7 @@ export function useTransferNumber() {
 export function useUpdateAutoRenew() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ numberId, enabled }) => updateAutoRenew(numberId, enabled),
+    mutationFn: ({ numberId, enabled, typeId }) => updateAutoRenew(numberId, enabled, typeId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }
@@ -74,14 +79,26 @@ export function useSendSmsFromNumber() {
   });
 }
 
-export function useNumberExtensionPlans(numberId) {
+export function useNumberExtensionPlans(numberId, typeId) {
   return useQuery({
-    queryKey: ["extension-plans", numberId],
-    queryFn: () => getNumberExtensionPlans(numberId),
+    queryKey: ["extension-plans", numberId, typeId],
+    queryFn: () => getNumberExtensionPlans(numberId, typeId),
     enabled: !!numberId,
     select: (data) => {
       if (Array.isArray(data)) return data;
       return [];
     }
+  });
+}
+
+export function useRestoreNumberPrice(numberId) {
+  return useQuery({
+    queryKey: ["restore-price", numberId],
+    queryFn: () => getRestoreNumberPrice(numberId),
+    enabled: !!numberId,
+    // errors here are eligibility answers ("window expired" etc.), not flaky network
+    retry: false,
+    // always quote the live price when the modal opens
+    staleTime: 0,
   });
 }

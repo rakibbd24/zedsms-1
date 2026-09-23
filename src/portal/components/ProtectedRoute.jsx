@@ -6,9 +6,7 @@ export const ProtectedRoute = ({ children }) => {
   const {
     isLoggedIn,
     isEmailVerified,
-    has2FA,
     isDisabled,
-    user,
     isLoading,
   } = useAuthContext();
 
@@ -52,11 +50,6 @@ export const ProtectedRoute = ({ children }) => {
   // Email not verified - redirect to verification page
   if (!isEmailVerified) {
     return <Navigate to="/auth/verify-email" replace />;
-  }
-
-  // Has 2FA enabled - redirect to OTP verification
-  if (has2FA) {
-    return <Navigate to="/auth/verify-otp" replace />;
   }
 
   // All checks passed - render dashboard

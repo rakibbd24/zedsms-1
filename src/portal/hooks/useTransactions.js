@@ -1,35 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getTransactions, topUp, transferBalance } from "../api/transactions";
+import { getTransactions, transferBalance } from "../api/transactions";
 
-export function useTransactions() {
+export function useTransactions(page = 1) {
   return useQuery({
-    queryKey: ["transactions"],
-    queryFn: getTransactions,
-    select: (data) => {
-      // Ensure data is always an array
-      if (Array.isArray(data)) return data;
-      if (data?.data && Array.isArray(data.data)) return data.data;
-      if (data?.transactions && Array.isArray(data.transactions)) return data.transactions;
-      return [];
-    }
-  });
-}
-
-export function useTopUp() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: topUp,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["me"] });
-    },
+    queryKey: ["transactions", page],
+    queryFn: () => getTransactions(page),
+    // keep the current page on screen while the next one loads
+    placeholderData: (prev) => prev,
   });
 }
 
 export function useTransferBalance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: transferBalance,
+    mutationFn: ({ recipient, amount }) => transferBalance({ recipient, amount }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["me"] });

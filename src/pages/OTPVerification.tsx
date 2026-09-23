@@ -1,46 +1,72 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuthContext } from "../portal/context/AuthContext";
+// @ts-ignore
+import { isMfaChallengeExpired } from "../portal/api/auth";
 
+// Second step of a 2FA sign-in. /login issued a short-lived challenge instead of
+// a token; it is exchanged here for the real one with an authenticator code or a
+// one-time recovery code. No credentials are held on this page.
 export function OTPVerificationPage() {
   const navigate = useNavigate();
-  const { user, verifyOtp, isVerifyOtpLoading, verifyOtpError, logout } = useAuthContext();
+  const location = useLocation();
+  const challenge = (location.state || {}) as { mfaToken?: string; email?: string };
+  const { verifyMfa, isVerifyMfaLoading } = useAuthContext();
+  const [mode, setMode] = React.useState<"otp" | "recovery">("otp");
   const [otp, setOtp] = React.useState("");
+  const [recoveryCode, setRecoveryCode] = React.useState("");
   const [error, setError] = React.useState("");
-  const [attempts, setAttempts] = React.useState(0);
-  const locked = attempts >= 3;
+
+  // Opened directly, or reloaded (router state is dropped) — there is no
+  // challenge to finish, so the sign-in starts again.
+  React.useEffect(() => {
+    if (!challenge.mfaToken) navigate("/auth/signin", { replace: true });
+  }, [challenge.mfaToken, navigate]);
+
+  // The challenge lives 5 minutes; send people back before they type into a dead form.
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      navigate("/auth/signin", { replace: true, state: { notice: "That sign-in attempt timed out. Please sign in again." } });
+    }, 5 * 60 * 1000);
+    return () => clearTimeout(t);
+  }, [navigate]);
+
+  const usingRecovery = mode === "recovery";
+  const value = usingRecovery ? recoveryCode : otp;
+  const ready = usingRecovery ? recoveryCode.trim().length >= 8 : otp.length === 6;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (locked || isVerifyOtpLoading) return;
-
+    if (isVerifyMfaLoading || !ready) return;
     setError("");
-
-    if (!otp || otp.length < 6) {
-      setError("Please enter a valid OTP");
-      return;
-    }
 
     try {
       await new Promise<void>((resolve, reject) => {
-        verifyOtp(
-          { otp },
+        verifyMfa(
+          usingRecovery
+            ? { mfaToken: challenge.mfaToken, recoveryCode: recoveryCode.trim() }
+            : { mfaToken: challenge.mfaToken, otp },
           {
             onSuccess: () => {
-              navigate("/app/home");
+              navigate("/app/home", { replace: true });
               resolve();
             },
-            onError: (error: any) => {
-              setAttempts((a) => a + 1);
-              const remaining = 3 - attempts - 1;
-              if (remaining > 0) {
-                setError(`Invalid OTP. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`);
-              } else {
-                setError("Too many failed attempts. Please try again later.");
+            onError: (err: any) => {
+              // expired, or too many wrong codes — the attempt is over
+              if (isMfaChallengeExpired(err)) {
+                navigate("/auth/signin", {
+                  replace: true,
+                  state: { notice: err?.body?.message || "That sign-in attempt expired. Please sign in again." },
+                });
+                reject(err);
+                return;
               }
-              reject(error);
+              setError(err?.body?.message || err?.message || "That code is not valid. Try again.");
+              setOtp("");
+              setRecoveryCode("");
+              reject(err);
             },
           }
         );
@@ -79,17 +105,12 @@ export function OTPVerificationPage() {
               Two-Factor Authentication
             </h1>
             <p className="text-[#6B6F76] text-sm text-center mb-6">
-              Enter the 6-digit code from your authenticator app to complete the login.
+              {usingRecovery
+                ? "Enter one of the recovery codes you saved when you turned on two-factor authentication."
+                : "Enter the 6-digit code from your authenticator app to complete the login."}
             </p>
 
-            {locked && (
-              <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex gap-3">
-                <span className="text-lg">⏱️</span>
-                <div>Too many failed attempts. Try again in 30 seconds.</div>
-              </div>
-            )}
-
-            {!locked && error && (
+            {error && (
               <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex gap-3">
                 <span className="text-lg">⚠️</span>
                 <div>{error}</div>
@@ -99,28 +120,41 @@ export function OTPVerificationPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* OTP Input */}
               <div>
-                <label className="block text-xs font-semibold text-[#6B6F76] mb-2">Authentication Code</label>
+                <label className="block text-xs font-semibold text-[#6B6F76] mb-2">
+                  {usingRecovery ? "Recovery Code" : "Authentication Code"}
+                </label>
                 <input
                   type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  disabled={locked}
-                  maxLength={6}
+                  autoFocus
+                  value={value}
+                  onChange={(e) =>
+                    usingRecovery
+                      ? setRecoveryCode(e.target.value.toUpperCase().slice(0, 12))
+                      : setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  placeholder={usingRecovery ? "XXXXX-XXXXX" : "000000"}
+                  maxLength={usingRecovery ? 12 : 6}
                   className={`w-full h-11 px-4 rounded-[11px] border text-center text-lg font-mono font-bold tracking-widest transition-colors ${
-                    error && !locked
+                    error
                       ? "border-red-500 bg-red-50 focus:border-red-500 focus:ring-2 focus:ring-red-100"
                       : "border-[#E1E2E7] bg-white focus:border-[#2155f5] focus:ring-2 focus:ring-[#eef1fb]"
                   }`}
                 />
+                <button
+                  type="button"
+                  onClick={() => { setMode(usingRecovery ? "otp" : "recovery"); setError(""); setOtp(""); setRecoveryCode(""); }}
+                  className="mt-3 text-[#2155f5] hover:underline text-xs font-medium"
+                >
+                  {usingRecovery ? "Use my authenticator app instead" : "Lost your phone? Use a recovery code"}
+                </button>
               </div>
 
               <button
                 type="submit"
-                disabled={locked || isVerifyOtpLoading}
+                disabled={isVerifyMfaLoading || !ready}
                 className="w-full bg-[#2155f5] hover:bg-[#1a46d1] disabled:opacity-50 text-white font-display font-medium py-3 rounded-full transition-colors mt-6 flex items-center justify-center gap-2"
               >
-                {isVerifyOtpLoading ? (
+                {isVerifyMfaLoading ? (
                   <>
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -141,10 +175,7 @@ export function OTPVerificationPage() {
             {/* Help Link */}
             <div className="mt-6 text-center">
               <button
-                onClick={() => {
-                  logout();
-                  navigate("/auth/signin");
-                }}
+                onClick={() => navigate("/auth/signin", { replace: true })}
                 className="text-[#2155f5] hover:underline text-sm font-medium"
               >
                 Back to Sign In

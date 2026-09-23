@@ -10,7 +10,7 @@ import { Modal } from "../components/ui/Modal";
 import { Toast } from "../components/ui/Toast";
 import { COUNTRIES, SERVICES } from "../mocks/seed";
 import { countryRentOf, svcPriceOf, weeklyPriceOf } from "../lib/pricing";
-import { useNumbers, useExtendNumber, useTransferNumber, useRenameNumber, useReleaseNumber, useUpdateAutoRenew, useSendSmsFromNumber, useNumberExtensionPlans } from "../hooks/useNumbers";
+import { useNumbers, useExtendNumber, useRestoreNumber, useRestoreNumberPrice, useTransferNumber, useRenameNumber, useReleaseNumber, useUpdateAutoRenew, useSendSmsFromNumber, useNumberExtensionPlans } from "../hooks/useNumbers";
 import { useMessages, useRecentMessages } from "../hooks/useMessages";
 import { useUser } from "../hooks/useUser";
 
@@ -27,6 +27,33 @@ const expiryDate = (days) => {
   const d = new Date();
   d.setDate(d.getDate() + (days || 0));
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+// ---- reactivation (restore) of lapsed numbers ----
+// A number that expires isn't released immediately: it sits in a grace window
+// during which POST /user/restore-number brings it back on the same number.
+// Past the deadline it's gone and the user has to buy a new one.
+const RESTORE_WINDOW_DAYS = 7;
+const isLapsed = (status) => status === "expired" || status === "disconnected";
+const restoreDeadlineOf = (expiryTs) => {
+  if (!expiryTs) return null;
+  const d = new Date(expiryTs);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + RESTORE_WINDOW_DAYS);
+  return d;
+};
+const restoreDaysLeftOf = (expiryTs) => {
+  const deadline = restoreDeadlineOf(expiryTs);
+  if (!deadline) return 0;
+  return Math.max(0, Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24)));
+};
+const termLabelOf = (terms) => {
+  const t = (terms || "").toUpperCase();
+  if (t === "MONTHLY") return "Monthly";
+  if (t === "QUARTERLY") return "Quarterly";
+  if (t === "SIX_MONTHLY") return "6 Months";
+  if (t === "ANNUALLY") return "Annual";
+  return terms;
 };
 const StatCard = ({ label, value, sub, tone, icon }) => (
   <Card style={{ padding: "15px 17px", flex: 1, minWidth: 0 }}>
@@ -310,7 +337,7 @@ function ExtendModal({ number, open, onClose, onConfirm, plans = [], isLoading =
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 16 }}>
           {plans.map((p) => {
             const sel = plan?.rent_time_id === p.rent_time_id;
-            const termLabel = p.terms === "MONTHLY" ? "Monthly" : p.terms === "QUARTERLY" ? "Quarterly" : p.terms === "SIX_MONTHLY" ? "6 Months" : p.terms === "ANNUALLY" ? "Annual" : p.terms;
+            const termLabel = termLabelOf(p.terms);
             const discount = getDiscount(p.cost, p.terms);
             return (
               <button key={p.rent_time_id} onClick={() => setSelectedPlan(p)} style={{ padding: "12px 13px", borderRadius: 12, textAlign: "left", background: sel ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${sel ? "var(--accent-border)" : "var(--border)"}`, position: "relative" }}>
@@ -350,6 +377,91 @@ function ExtendModal({ number, open, onClose, onConfirm, plans = [], isLoading =
           <Button full variant="subtle" onClick={onClose}>Close</Button>
         </div>
       )}
+    </Modal>
+  );
+}
+
+const PriceRow = ({ label, value, strong }) => (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0" }}>
+    <span style={{ fontSize: strong ? 13.5 : 12.5, fontWeight: strong ? 600 : 400, color: strong ? "var(--text)" : "var(--text-muted)" }}>{label}</span>
+    <span className="mono tnum" style={{ fontSize: strong ? 18 : 13, fontWeight: strong ? 600 : 500, letterSpacing: strong ? "-0.02em" : 0 }}>{value}</span>
+  </div>
+);
+
+// Price comes from /user/restore-number-price; the server is the authority on
+// eligibility, so any error it returns (window closed, unsupported carrier, …)
+// is shown verbatim and blocks the confirm button.
+function RestoreModal({ number, open, onClose, onConfirm, price, isLoading = false, error = null, balance = 0, isSubmitting = false }) {
+  if (!open) return null;
+
+  const deadline = restoreDeadlineOf(number.expiresAt);
+  const daysLeft = restoreDaysLeftOf(number.expiresAt);
+  const wallet = typeof balance === "number" ? balance : 0;
+  const total = price ? price.total : 0;
+  const shortBy = price ? total - wallet : 0;
+  const cantAfford = !!price && shortBy > 0.0001;
+  const blocked = !!error;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Reactivate number" subtitle={number.number}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 13px", borderRadius: 11, background: "var(--surface-2)", marginBottom: 14 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-muted)" }}>
+          <Badge tone={number.type === "Private" ? "solid" : "accent"}>{number.type}</Badge>
+          {number.type === "Private" ? `Priced for ${number.country}` : `${number.service} · shared rate`}
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 11, background: "var(--accent-soft)", marginBottom: 18 }}>
+          <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }}><Icon name="info" size={16} /></span>
+          <span style={{ fontSize: 12.5, color: "var(--accent)", lineHeight: 1.5 }}>Checking restore price...</span>
+        </div>
+      ) : blocked ? (
+        <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 11, background: "var(--danger-soft)", marginBottom: 18 }}>
+          <span style={{ color: "var(--danger)", flexShrink: 0, marginTop: 1 }}><Icon name="info" size={16} /></span>
+          <span style={{ fontSize: 12.5, color: "var(--danger)", lineHeight: 1.5 }}>{error.message || "This number can't be reactivated."}</span>
+        </div>
+      ) : price && (
+        <>
+          {deadline && daysLeft > 0 && (
+            <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 11, background: "var(--warning-soft)", marginBottom: 14 }}>
+              <span style={{ color: "var(--warning)", flexShrink: 0, marginTop: 1 }}><Icon name="info" size={16} /></span>
+              <span style={{ fontSize: 12.5, color: "var(--warning)", lineHeight: 1.5 }}>
+                Expired on {formatExpiryDate(number.expiresAt)}. Reactivate on the same number until {formatExpiryDate(deadline)} (<strong className="tnum">{daysLeft} day{daysLeft === 1 ? "" : "s"} left</strong>). After that it's released for good.
+              </span>
+            </div>
+          )}
+
+          <div style={{ borderRadius: 12, border: "1px solid var(--border)", padding: "8px 14px", marginBottom: 14 }}>
+            <PriceRow label="1 month of service" value={`$${price.monthlyFee.toFixed(2)}`} />
+            {price.restoreFee > 0 && <PriceRow label="Restore fee (one-off)" value={`$${price.restoreFee.toFixed(2)}`} />}
+            <div style={{ height: 1, background: "var(--border)", margin: "5px 0" }} />
+            <PriceRow label="Total" value={`$${total.toFixed(2)}`} strong />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+              <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Wallet balance</span>
+              <span className="mono tnum" style={{ fontSize: 13, fontWeight: 550, color: cantAfford ? "var(--danger)" : "var(--text)" }}>${wallet.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {cantAfford && (
+            <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 11, background: "var(--danger-soft)", marginBottom: 14 }}>
+              <span style={{ color: "var(--danger)", flexShrink: 0, marginTop: 1 }}><Icon name="wallet" size={16} /></span>
+              <span style={{ fontSize: 12.5, color: "var(--danger)", lineHeight: 1.5 }}>
+                Your balance is <span className="tnum">${shortBy.toFixed(2)}</span> short. Top up your wallet before reactivating.
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <Button full variant="subtle" onClick={onClose}>{blocked ? "Close" : "Cancel"}</Button>
+        {!blocked && (
+          <Button full icon="refresh" onClick={onConfirm} disabled={isLoading || !price || isSubmitting || cantAfford}>
+            {isSubmitting ? "Reactivating..." : price ? `Pay $${total.toFixed(2)} & reactivate` : "Reactivate"}
+          </Button>
+        )}
+      </div>
     </Modal>
   );
 }
@@ -436,10 +548,11 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   const [filter, setFilter] = React.useState("active");
   const [typeFilter, setTypeFilter] = React.useState("all"); // 'all' | 'Private' | 'Shared'
   const { data: apiNumbers = [] } = useNumbers();
+  const { data: user } = useUser();
   const [selected, setSelected] = React.useState(initialNumberId);
   const [query, setQuery] = React.useState("");
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [modal, setModal] = React.useState(null); // 'renew' | 'transfer' | 'rename' | 'release' | 'compose'
+  const [modal, setModal] = React.useState(null); // 'renew' | 'restore' | 'transfer' | 'rename' | 'release' | 'compose'
   const [msgTab, setMsgTab] = React.useState("inbox"); // 'inbox' | 'sent'
   const [msgQuery, setMsgQuery] = React.useState("");
   const [toast, setToast] = React.useState(null);
@@ -516,6 +629,8 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
 
       const normalized = {
         id: n.id,
+        // ids are per-table, so a shared and a private number can share one — select by uid
+        uid: `${isPrivate ? "private" : "shared"}:${n.id}`,
         iso: n.iso || "GB",
         number: n.number || "",
         service: n.service_name || (isPrivate ? "Private" : "SMS"),
@@ -531,15 +646,27 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
         unread: messageCount
       };
 
+      // lapsed numbers keep a grace window in which they can be reactivated
+      const lapsed = isLapsed(normalized.status);
+      normalized.restoreDeadline = lapsed ? restoreDeadlineOf(expiryTs) : null;
+      normalized.restoreDaysLeft = lapsed ? restoreDaysLeftOf(expiryTs) : 0;
+      normalized.canRestore = lapsed && !!normalized.restoreDeadline && normalized.restoreDaysLeft > 0;
+
       if (n.label) console.log("Number with label:", n.id, n.label, "→", normalized.label);
       return normalized;
     });
   }, [apiNumbers]);
 
+  // the "open this number" request is one-shot: consume it so later visits start fresh
+  React.useEffect(() => {
+    if (initialNumberId) clearInitial?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
   // Set initial selection once
   React.useEffect(() => {
     if (!selected && numbers.length > 0) {
-      setSelected(initialNumberId || numbers[0].id);
+      setSelected(initialNumberId || numbers[0].uid);
     }
   }, [numbers, selected, initialNumberId]);
 
@@ -551,7 +678,8 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
     })
     .filter((n) => (typeFilter === "all" ? true : n.type === typeFilter))
     .filter((n) => n.number.includes(query) || n.country.toLowerCase().includes(query.toLowerCase()) || (n.service || "").toLowerCase().includes(query.toLowerCase()) || (n.label || "").toLowerCase().includes(query.toLowerCase()));
-  const current = numbers.find((n) => n.id === selected) || list[0];
+  // selected is a uid; plain ids still come in from the home screen shortcuts
+  const current = numbers.find((n) => n.uid === selected) || numbers.find((n) => n.id === selected) || list[0];
 
   // Get messages for current number
   const { data: rawMessages = [] } = useMessages(current?.id);
@@ -615,22 +743,37 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
 
   // Initialize mutations and queries
   const extendMutation = useExtendNumber();
+  const restoreMutation = useRestoreNumber();
   const transferMutation = useTransferNumber();
   const renameMutation = useRenameNumber();
   const releaseMutation = useReleaseNumber();
   const autoRenewMutation = useUpdateAutoRenew();
   const sendSmsMutation = useSendSmsFromNumber();
-  const { data: extensionPlans = [], isLoading: extensionPlansLoading } = useNumberExtensionPlans(modal === "renew" ? current?.id : null);
+  const { data: extensionPlans = [], isLoading: extensionPlansLoading } = useNumberExtensionPlans(modal === "renew" ? current?.id : null, current?.mobile_number_type_id);
+  const { data: restorePrice, isLoading: restorePriceLoading, error: restorePriceError } = useRestoreNumberPrice(modal === "restore" ? current?.id : null);
 
   // ---- actions ----
   const doExtend = (rentTimeId) => {
     if (current) {
-      extendMutation.mutate({ numberId: current.id, plan: rentTimeId }, {
+      extendMutation.mutate({ numberId: current.id, plan: rentTimeId, typeId: current.mobile_number_type_id }, {
         onSuccess: () => {
           setModal(null);
           showToast(`${current.label || current.number} extended`);
         },
-        onError: () => showToast("Failed to extend number", "danger")
+        onError: (err) => showToast(err?.message || "Failed to extend number", "danger")
+      });
+    }
+  };
+
+  const doRestore = () => {
+    if (current) {
+      const lbl = current.label || current.number;
+      restoreMutation.mutate(current.id, {
+        onSuccess: () => {
+          setModal(null);
+          showToast(`${lbl} reactivated`);
+        },
+        onError: (err) => showToast(err?.message || "Failed to reactivate number", "danger")
       });
     }
   };
@@ -638,24 +781,24 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   const doTransfer = (to) => {
     if (current) {
       const lbl = current.number;
-      transferMutation.mutate({ numberId: current.id, toZedId: to }, {
+      transferMutation.mutate({ numberId: current.id, toZedId: to, typeId: current.mobile_number_type_id }, {
         onSuccess: () => {
           setModal(null);
           showToast(`${lbl} transferred to ${to}`, "accent");
         },
-        onError: (err) => showToast("Failed to transfer number", "danger")
+        onError: (err) => showToast(err?.message || "Failed to transfer number", "danger")
       });
     }
   };
 
   const doRename = (label) => {
     if (current) {
-      renameMutation.mutate({ numberId: current.id, label }, {
+      renameMutation.mutate({ numberId: current.id, label, typeId: current.mobile_number_type_id }, {
         onSuccess: () => {
           setModal(null);
           showToast(label ? `Label saved` : `Label removed`);
         },
-        onError: (err) => showToast("Failed to rename number", "danger")
+        onError: (err) => showToast(err?.message || "Failed to rename number", "danger")
       });
     }
   };
@@ -663,12 +806,12 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   const doRelease = () => {
     if (current) {
       const lbl = current.number;
-      releaseMutation.mutate(current.id, {
+      releaseMutation.mutate({ numberId: current.id, typeId: current.mobile_number_type_id }, {
         onSuccess: () => {
           setModal(null);
           showToast(`${lbl} released`, "danger");
         },
-        onError: (err) => showToast("Failed to release number", "danger")
+        onError: (err) => showToast(err?.message || "Failed to release number", "danger")
       });
     }
   };
@@ -676,12 +819,12 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   const toggleAuto = () => {
     if (current) {
       const next = !current.autoRenew;
-      autoRenewMutation.mutate({ numberId: current.id, enabled: next }, {
+      autoRenewMutation.mutate({ numberId: current.id, enabled: next, typeId: current.mobile_number_type_id }, {
         onSuccess: () => {
           setMenuOpen(false);
           showToast(next ? "Auto-renew turned on" : "Auto-renew turned off", next ? "success" : "danger");
         },
-        onError: (err) => showToast("Failed to update auto-renew", "danger")
+        onError: (err) => showToast(err?.message || "Failed to update auto-renew", "danger")
       });
     }
   };
@@ -767,9 +910,9 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
         <div style={{ maxHeight: "calc(100vh - 240px)", overflowY: "auto", padding: 8 }}>
           {list.length === 0 && <Empty icon="grid" label="No numbers here" />}
           {list.map((n) => {
-            const isSel = current && n.id === current.id;
+            const isSel = current && n.uid === current.uid;
             return (
-              <button key={n.id} onClick={() => setSelected(n.id)} style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "11px 11px", borderRadius: 11, textAlign: "left", marginBottom: 2,
+              <button key={n.uid} onClick={() => setSelected(n.uid)} style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "11px 11px", borderRadius: 11, textAlign: "left", marginBottom: 2,
                 background: isSel ? "var(--accent-soft)" : "transparent", border: isSel ? "1px solid var(--accent-border)" : "1px solid transparent", transition: "background 0.12s" }}
                 onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.background = "var(--surface-2)"; }} onMouseLeave={(e) => { if (!isSel) e.currentTarget.style.background = "transparent"; }}>
                 <FlagAvatar iso={n.iso || "GB"} size={38} />
@@ -797,7 +940,12 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                       <Icon name="msg" size={11} strokeWidth={2.2} />{n.unread}
                     </span>
                   )}
-                  {n.status === "expired" ? <Badge tone="neutral">Expired</Badge> : <Badge tone={n.days <= 7 ? "warning" : "success"} className="tnum">{n.timeRemaining} left</Badge>}
+                  {isLapsed(n.status)
+                    ? <>
+                        <Badge tone="neutral">Expired</Badge>
+                        {n.canRestore && <span className="tnum" style={{ fontSize: 11, color: "var(--warning)" }}>{n.restoreDaysLeft}d to reactivate</span>}
+                      </>
+                    : <Badge tone={n.days <= 7 ? "warning" : "success"} className="tnum">{n.timeRemaining} left</Badge>}
                 </div>
               </button>
             );
@@ -824,7 +972,9 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, position: "relative" }}>
-                  <Button variant="ghost" size="sm" icon="refresh" onClick={() => setModal("renew")}>{current.status === "expired" || current.status === "disconnected" ? "Reactivate" : "Extend"}</Button>
+                  {isLapsed(current.status)
+                    ? <Button variant="ghost" size="sm" icon="refresh" onClick={() => setModal("restore")} title={current.canRestore ? `Reactivate on the same number — ${current.restoreDaysLeft} day${current.restoreDaysLeft === 1 ? "" : "s"} left` : `The ${RESTORE_WINDOW_DAYS}-day reactivation window has closed`}>Reactivate</Button>
+                    : <Button variant="ghost" size="sm" icon="refresh" onClick={() => setModal("renew")}>Extend</Button>}
                   <Button variant="subtle" size="sm" icon="sliders" iconRight="chevD" onClick={() => setMenuOpen((v) => !v)}>Manage</Button>
                   {menuOpen && (
                     <>
@@ -842,7 +992,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 22, marginTop: 16, paddingTop: 15, borderTop: "1px solid var(--border)", flexWrap: "wrap" }}>
-                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>{current.status === "expired" || current.status === "disconnected" ? "Expired on" : "Expires in"}</div><div className="mono tnum" style={{ fontSize: 15, fontWeight: 600, color: current.status === "expired" || current.status === "disconnected" ? "var(--danger)" : current.days <= 7 ? "var(--warning)" : "var(--text)" }}>{current.status === "expired" || current.status === "disconnected" ? formatExpiryDate(current.expiresAt) : current.days + " days"}</div>{current.status !== "expired" && current.status !== "disconnected" && <div className="tnum" style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>{formatExpiryDate(current.expiresAt)}</div>}</div>
+                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>{current.status === "expired" || current.status === "disconnected" ? "Expired on" : "Expires in"}</div><div className="mono tnum" style={{ fontSize: 15, fontWeight: 600, color: current.status === "expired" || current.status === "disconnected" ? "var(--danger)" : current.days <= 7 ? "var(--warning)" : "var(--text)" }}>{current.status === "expired" || current.status === "disconnected" ? formatExpiryDate(current.expiresAt) : current.days + " days"}</div>{current.status !== "expired" && current.status !== "disconnected" && <div className="tnum" style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>{formatExpiryDate(current.expiresAt)}</div>}{isLapsed(current.status) && <div className="tnum" style={{ fontSize: 11.5, color: current.canRestore ? "var(--warning)" : "var(--text-faint)", marginTop: 2 }}>{current.canRestore ? `Reactivate within ${current.restoreDaysLeft} day${current.restoreDaysLeft === 1 ? "" : "s"}` : "Reactivation window closed"}</div>}</div>
                 <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>Status</div><div style={{ fontSize: 13.5, fontWeight: 550, color: current.status === "expired" || current.status === "disconnected" ? "var(--text-muted)" : "var(--success)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: 99, background: current.status === "expired" || current.status === "disconnected" ? "var(--text-faint)" : "var(--success)" }} />{current.status === "expired" || current.status === "disconnected" ? "Inactive" : "Active"}</div></div>
                 <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>Auto-renew</div><div style={{ fontSize: 13.5, fontWeight: 550, color: current.autoRenew ? "var(--success)" : "var(--text-muted)" }}>{current.autoRenew ? "On" : "Off"}</div></div>
               </div>
@@ -951,6 +1101,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
     </div>
 
     {current && <ExtendModal number={current} open={modal === "renew"} onClose={() => setModal(null)} onConfirm={doExtend} plans={extensionPlans} isLoading={extensionPlansLoading} />}
+    {current && <RestoreModal number={current} open={modal === "restore"} onClose={() => setModal(null)} onConfirm={doRestore} price={restorePrice} isLoading={restorePriceLoading} error={restorePriceError} balance={typeof user?.balance === "number" ? user.balance : 0} isSubmitting={restoreMutation.isPending} />}
     {current && <TransferModal number={current} open={modal === "transfer"} onClose={() => setModal(null)} onConfirm={doTransfer} />}
     {current && <RenameModal number={current} open={modal === "rename"} onClose={() => setModal(null)} onConfirm={doRename} />}
     {current && <ReleaseModal number={current} open={modal === "release"} onClose={() => setModal(null)} onConfirm={doRelease} />}

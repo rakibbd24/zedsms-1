@@ -1,6 +1,7 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import SocialAuthButtons from "../components/SocialAuthButtons";
 import Footer from "../components/Footer";
 import { useAuth } from "../portal/hooks/useAuth";
 
@@ -16,6 +17,9 @@ const pwStrongEnough = (p: string) => Object.values(pwChecks(p)).every(Boolean);
 // ============ SIGN IN PAGE ============
 function SignInPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // set when the 2FA step sends the user back (challenge expired or used up)
+  const notice = (location.state as { notice?: string } | null)?.notice;
   const { login, isLoginLoading, loginError } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -41,8 +45,15 @@ function SignInPage() {
         login(
           { login: email, password },
           {
-            onSuccess: () => {
-              setTimeout(() => navigate("/app/home"), 300);
+            onSuccess: (result: any) => {
+              // 2FA account: no token yet — finish on the OTP screen, carrying the
+              // credentials in router state (verifyOtp re-checks them) and never storing them
+              if (result?.needsOtp) {
+                // carry only the short-lived challenge, never the password
+                navigate("/auth/verify-otp", { state: { mfaToken: result.mfaToken, email }, replace: true });
+              } else {
+                setTimeout(() => navigate("/app/home"), 300);
+              }
               resolve();
             },
             onError: (error: any) => {
@@ -101,6 +112,13 @@ function SignInPage() {
               <div>Too many failed attempts. Try again in 30 seconds.</div>
             </div>
           )}
+          {notice && !errors.submit && (
+            <div className="mb-4 p-4 rounded-lg bg-amber-50 text-amber-800 text-sm flex gap-3">
+              <span className="text-lg">⏱️</span>
+              <div>{notice}</div>
+            </div>
+          )}
+
           {!locked && errors.submit && (
             <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex gap-3">
               <span className="text-lg">⚠️</span>
@@ -173,29 +191,7 @@ function SignInPage() {
             </button>
           </form>
 
-          {/* Social Login */}
-          <div className="mt-6">
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#E1E2E7]"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-2 bg-white text-[#9CA1A9]">or continue with</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <button className="flex items-center justify-center gap-2 h-11 border border-[#E1E2E7] rounded-[11px] bg-white hover:bg-[#f9f9fa] text-sm font-medium text-[#0f1013]">
-                <span>🔴</span> Google
-              </button>
-              <button className="flex items-center justify-center gap-2 h-11 border border-[#E1E2E7] rounded-[11px] bg-white hover:bg-[#f9f9fa] text-sm font-medium text-[#0f1013]">
-                <span>💬</span> Telegram
-              </button>
-              <button className="flex items-center justify-center gap-2 h-11 border border-[#E1E2E7] rounded-[11px] bg-white hover:bg-[#f9f9fa] text-sm font-medium text-[#0f1013]">
-                <span>🍎</span> Apple
-              </button>
-            </div>
-          </div>
+          <SocialAuthButtons action="Sign in" />
 
           {/* Sign Up Link */}
           <div className="mt-6 text-center text-sm">
@@ -409,29 +405,7 @@ function SignUpPage() {
             </button>
           </form>
 
-          {/* Social Login */}
-          <div className="mt-6">
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#E1E2E7]"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-2 bg-white text-[#9CA1A9]">or continue with</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <button className="flex items-center justify-center gap-2 h-11 border border-[#E1E2E7] rounded-[11px] bg-white hover:bg-[#f9f9fa] text-sm font-medium text-[#0f1013]">
-                <span>🔴</span> Google
-              </button>
-              <button className="flex items-center justify-center gap-2 h-11 border border-[#E1E2E7] rounded-[11px] bg-white hover:bg-[#f9f9fa] text-sm font-medium text-[#0f1013]">
-                <span>💬</span> Telegram
-              </button>
-              <button className="flex items-center justify-center gap-2 h-11 border border-[#E1E2E7] rounded-[11px] bg-white hover:bg-[#f9f9fa] text-sm font-medium text-[#0f1013]">
-                <span>🍎</span> Apple
-              </button>
-            </div>
-          </div>
+          <SocialAuthButtons action="Sign up" />
 
           {/* Sign In Link */}
           <div className="mt-6 text-center text-sm">

@@ -3,13 +3,47 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuthContext } from "../portal/context/AuthContext";
+// @ts-ignore
+import { getEmailVerifyStatus, resendVerificationEmail } from "../portal/api/auth";
 
 export function EmailVerificationPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthContext();
+  const { user, logout, refreshUser } = useAuthContext();
   const [resendAfter, setResendAfter] = React.useState(0);
   const [isResending, setIsResending] = React.useState(false);
   const [message, setMessage] = React.useState("");
+
+  // The link is usually opened in another tab (or another device), so this
+  // screen asks the API whether the address has been verified yet and moves on
+  // by itself. Polling pauses while the tab is hidden and stops after 15 min.
+  React.useEffect(() => {
+    let stopped = false;
+    const startedAt = Date.now();
+
+    const check = async () => {
+      if (stopped || document.hidden) return;
+      if (Date.now() - startedAt > 15 * 60 * 1000) { clearInterval(timer); return; }
+
+      const { verified } = await getEmailVerifyStatus();
+      if (verified && !stopped) {
+        clearInterval(timer);
+        await refreshUser?.();
+        navigate("/app/home", { replace: true });
+      }
+    };
+
+    const timer = setInterval(check, 5000);
+    // also check as soon as the user comes back to this tab
+    const onVisible = () => { if (!document.hidden) check(); };
+    document.addEventListener("visibilitychange", onVisible);
+    check();
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [navigate, refreshUser]);
 
   const handleResendEmail = async () => {
     if (resendAfter > 0) return;
@@ -18,26 +52,12 @@ export function EmailVerificationPage() {
     setMessage("");
 
     try {
-      // Call resend verification email endpoint
-      const response = await fetch("https://control.zedsms.com/api/email/send-verification-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("zedsms-token")}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage("Verification email sent! Check your inbox.");
-        // Start 2 minute cooldown
-        setResendAfter(120);
-      } else {
-        setMessage(data.message || "Failed to resend email");
-      }
-    } catch (error) {
-      setMessage("Failed to resend email. Please try again.");
+      const msg = await resendVerificationEmail();
+      setMessage(msg || "Verification email sent! Check your inbox.");
+      // 2 minute cooldown, same as the old dashboard
+      setResendAfter(120);
+    } catch (error: any) {
+      setMessage(error?.body?.message || error?.message || "Failed to resend email");
     } finally {
       setIsResending(false);
     }
@@ -93,15 +113,16 @@ export function EmailVerificationPage() {
               activate your account.
             </p>
             <p className="text-[#9CA1A9] text-xs mb-6">
-              Didn't receive the email? Check your spam folder or try resending it below.
+              Leave this page open — it continues automatically once you click the link.
+              Didn't receive the email? Check your spam folder or resend it below.
             </p>
 
             {message && (
               <div
                 className="mb-6 p-4 rounded-lg text-sm"
                 style={{
-                  background: message.includes("sent") ? "#E9F6EF" : "#FCEDEC",
-                  color: message.includes("sent") ? "#1B8A5A" : "#D6453A",
+                  background: /sent|verified/i.test(message) ? "#E9F6EF" : "#FCEDEC",
+                  color: /sent|verified/i.test(message) ? "#1B8A5A" : "#D6453A",
                 }}
               >
                 {message}

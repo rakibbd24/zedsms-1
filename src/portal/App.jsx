@@ -141,7 +141,11 @@ function AppContent({ onLogoutRedirect }) {
     "density": "regular",
     "corners": "soft"
   }/*EDITMODE-END*/;
-  const [route, setRoute] = React.useState("home");
+  // /app?view=topup (etc.) opens a specific screen — used by the payment return page
+  const [route, setRoute] = React.useState(() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    return ["home", "numbers", "buy", "topup", "transfer", "transactions", "settings"].includes(view) ? view : "home";
+  });
   const [theme, setTheme] = React.useState(() => localStorage.getItem("zedsms-theme") || "light");
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [pendingNumber, setPendingNumber] = React.useState(null);

@@ -27,7 +27,8 @@ export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: authApi.login,
     onSuccess: (data) => {
-      queryClient.setQueryData(["auth:user"], data.user);
+      // a 2FA account gets no user/token here — it finishes through verifyMfa
+      if (data?.user) queryClient.setQueryData(["auth:user"], data.user);
     },
   });
 
@@ -39,17 +40,21 @@ export function useAuth() {
     },
   });
 
-  // Google login mutation
-  const googleLoginMutation = useMutation({
-    mutationFn: authApi.loginWithGoogle,
+  // Social sign-in (Google / Apple / Telegram). Like password login, a 2FA
+  // account returns a challenge instead of a user, so only set what we got.
+  const socialLoginMutation = useMutation({
+    mutationFn: ({ provider, ...payload }) =>
+      provider === "apple" ? authApi.loginWithApple(payload)
+        : provider === "telegram" ? authApi.loginWithTelegram(payload.data)
+        : authApi.loginWithGoogle(payload),
     onSuccess: (data) => {
-      queryClient.setQueryData(["auth:user"], data.user);
+      if (data?.user) queryClient.setQueryData(["auth:user"], data.user);
     },
   });
 
   // OTP verification mutation
-  const verifyOtpMutation = useMutation({
-    mutationFn: authApi.verifyOtp,
+  const verifyMfaMutation = useMutation({
+    mutationFn: authApi.verifyMfa,
     onSuccess: (data) => {
       queryClient.setQueryData(["auth:user"], data.user);
     },
@@ -79,17 +84,20 @@ export function useAuth() {
     isSignupLoading: signupMutation.isPending,
     signupError: signupMutation.error,
 
-    // Google login
-    googleLogin: googleLoginMutation.mutate,
-    googleLoginAsync: googleLoginMutation.mutateAsync,
-    isGoogleLoginLoading: googleLoginMutation.isPending,
-    googleLoginError: googleLoginMutation.error,
+    // Social login
+    socialLogin: socialLoginMutation.mutate,
+    socialLoginAsync: socialLoginMutation.mutateAsync,
+    isSocialLoginLoading: socialLoginMutation.isPending,
+    socialLoginError: socialLoginMutation.error,
 
     // OTP
-    verifyOtp: verifyOtpMutation.mutate,
-    verifyOtpAsync: verifyOtpMutation.mutateAsync,
-    isVerifyOtpLoading: verifyOtpMutation.isPending,
-    verifyOtpError: verifyOtpMutation.error,
+    verifyMfa: verifyMfaMutation.mutate,
+    verifyMfaAsync: verifyMfaMutation.mutateAsync,
+    isVerifyMfaLoading: verifyMfaMutation.isPending,
+    verifyMfaError: verifyMfaMutation.error,
+
+    // Re-read the signed-in user from the API (after email verification, etc.)
+    refreshUser: userQuery.refetch,
 
     // Logout
     logout,

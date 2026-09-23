@@ -1,46 +1,55 @@
 import { api } from "./client";
 
-// Get user's transaction history
-export async function getTransactions() {
-  try {
-    const response = await api.get("/user/my-transactions");
-    // API returns paginated response
-    if (response?.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    if (Array.isArray(response)) return response;
-    if (response?.data && Array.isArray(response.data)) return response.data;
-    return [];
-  } catch (error) {
-    console.error("Error fetching transactions:", error);
-    return [];
+// Transaction history — the user's own account history rows (UserHistory),
+// same endpoint the legacy dashboard's Transaction.vue used.
+// GET /user/my-transactions?page=N → { message, data: <laravel paginator> }
+//
+// status: 0 Pending · 1 Complete · 2 Partial · 3 Declined
+// amount_updates carries its own sign, e.g. "-2.70" (spent) or "+5" (added).
+export const TRANSACTION_STATUS = {
+  0: { label: "Pending", tone: "warning" },
+  1: { label: "Complete", tone: "success" },
+  2: { label: "Partial", tone: "accent" },
+  3: { label: "Declined", tone: "danger" },
+};
+
+function normalizeTransaction(row) {
+  const amount = parseFloat(String(row?.amount_updates ?? "").replace(/[^\d.+-]/g, "")) || 0;
+  return {
+    id: row?.id,
+    date: row?.created_at || null,
+    action: row?.action_name || "Activity",
+    desc: row?.action_details || "",
+    trxId: row?.trx_id || null,
+    amount,
+    status: Number(row?.status ?? 0),
+  };
+}
+
+export async function getTransactions(page = 1) {
+  const res = await api.get(`/user/my-transactions?page=${page}`);
+  const paginator = res?.data || {};
+  const rows = Array.isArray(paginator.data) ? paginator.data : Array.isArray(res?.data) ? res.data : [];
+  return {
+    rows: rows.map(normalizeTransaction),
+    page: paginator.current_page || page,
+    perPage: paginator.per_page || rows.length,
+    total: paginator.total ?? rows.length,
+    lastPage: paginator.last_page || 1,
+  };
+}
+
+// Transfer balance to another ZEDSMS wallet.
+// Same contract as the legacy dashboard: recipient is an email or a numeric
+// ZEDSMS ID, and failures ("User not found", "Insufficient balance", …) come
+// back as HTTP 200 with status false.
+export async function transferBalance({ recipient, amount }) {
+  const res = await api.post("/user/balance-transfer", {
+    recipient: String(recipient || "").trim(),
+    amount
+  });
+  if (res?.status !== true) {
+    throw new Error(res?.message || "Transfer failed");
   }
-}
-
-// Top up account balance
-export async function topUp({ amount, method }) {
-  return api.post("/user/topup", { amount, method });
-}
-
-// Transfer balance to another user
-export async function transferBalance({ amount, toZedId }) {
-  return api.post("/user/transfer-balance", { amount, to_zedsms_id: toZedId });
-}
-
-// Get payment methods
-export async function getPaymentMethods() {
-  try {
-    return api.get("/user/payment-methods");
-  } catch (err) {
-    throw new Error("Failed to get payment methods");
-  }
-}
-
-// Initiate payment
-export async function initiatePayment({ amount, method }) {
-  try {
-    return api.post("/user/payment/initiate", { amount, payment_method: method });
-  } catch (err) {
-    throw new Error("Payment initiation failed");
-  }
+  return res;
 }

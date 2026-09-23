@@ -1,13 +1,34 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
-import { ServiceAvatar } from "./ui/Avatars";
 import { PAGE_TITLES } from "./nav";
-import { useMessages } from "../hooks/useMessages";
+import { useNotificationFeed, useMarkNotificationRead, useMarkAllNotificationsRead } from "../hooks/useNotificationFeed";
+
+// "3 min ago" / "2d ago" for notification timestamps
+const notifWhen = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 60 * 24) return `${Math.floor(mins / 60)}h ago`;
+  if (mins < 60 * 24 * 7) return `${Math.floor(mins / 1440)}d ago`;
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+};
 
 export const Topbar = ({ route, setRoute, theme, toggleTheme, setMobileOpen }) => {
   const [notifOpen, setNotifOpen] = React.useState(false);
-  const { data: messages = [] } = useMessages();
+
+  const feed = useNotificationFeed();
+  const markRead = useMarkNotificationRead();
+  const markAll = useMarkAllNotificationsRead();
+  const notifications = React.useMemo(
+    () => (feed.data?.pages || []).flatMap((p) => p.items),
+    [feed.data]
+  );
+  // counted across the pages loaded so far
+  const unread = notifications.filter((n) => !n.readAt).length;
 
   return (
     <header style={{ position: "sticky", top: 10, zIndex: 30, background: "color-mix(in srgb, var(--bg) 82%, transparent)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--border)" }}>
@@ -33,27 +54,65 @@ export const Topbar = ({ route, setRoute, theme, toggleTheme, setMobileOpen }) =
         <div style={{ position: "relative" }}>
           <button onClick={() => setNotifOpen(!notifOpen)} style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", position: "relative" }}>
             <Icon name="bell" size={18} />
-            <span style={{ position: "absolute", top: 8, right: 9, width: 7, height: 7, borderRadius: 99, background: "var(--accent)", border: "2px solid var(--surface-2)" }} />
+            {unread > 0 && (
+              <span className="tnum" style={{ position: "absolute", top: -5, right: -5, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 99, background: "var(--accent)", color: "#fff", border: "2px solid var(--surface-2)", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
           </button>
           {notifOpen && (
             <>
               <div onClick={() => setNotifOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
               <div style={{ position: "absolute", right: 0, top: 46, width: 320, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, boxShadow: "var(--shadow-pop)", zIndex: 50, overflow: "hidden", animation: "popIn 0.16s ease both" }}>
-                <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>Notifications</span>
-                  <span style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500 }}>Mark all read</span>
+                <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>Notifications{unread > 0 && <span className="tnum" style={{ color: "var(--text-faint)", fontWeight: 500 }}> · {unread} new</span>}</span>
+                  <button
+                    onClick={() => markAll.mutate()}
+                    disabled={unread === 0 || markAll.isPending}
+                    style={{ fontSize: 12, color: unread === 0 ? "var(--text-faint)" : "var(--accent)", fontWeight: 500, cursor: unread === 0 ? "default" : "pointer" }}
+                  >
+                    {markAll.isPending ? "Marking…" : "Mark all read"}
+                  </button>
                 </div>
-                {messages.slice(0, 3).map((m) => (
-                  <div key={m.id} style={{ display: "flex", gap: 11, padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
-                    <ServiceAvatar color={m.color} letter={m.letter} size={30} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 500 }}>New code from {m.from}</div>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.body}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>{m.time}</div>
+
+                <div style={{ maxHeight: 360, overflowY: "auto" }}>
+                  {feed.isLoading ? (
+                    <div style={{ padding: "22px 16px", textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>Loading…</div>
+                  ) : feed.error ? (
+                    <div style={{ padding: "18px 16px", textAlign: "center" }}>
+                      <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 8 }}>Could not load notifications</div>
+                      <button onClick={() => feed.refetch()} style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500 }}>Retry</button>
                     </div>
-                  </div>
-                ))}
-                <button onClick={() => { setRoute("numbers"); setNotifOpen(false); }} style={{ width: "100%", padding: "11px", fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>View all messages</button>
+                  ) : notifications.length === 0 ? (
+                    <div style={{ padding: "26px 16px", textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>
+                      You're all caught up — account activity shows up here.
+                    </div>
+                  ) : notifications.map((n) => (
+                    <button
+                      key={n.id}
+                      onClick={() => { if (!n.readAt) markRead.mutate(n.id); }}
+                      style={{ display: "flex", gap: 11, width: "100%", textAlign: "left", padding: "12px 16px", borderBottom: "1px solid var(--border)", background: n.readAt ? "transparent" : "var(--accent-soft)", transition: "background 0.14s" }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: 99, marginTop: 5, flexShrink: 0, background: n.readAt ? "transparent" : "var(--accent)" }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: n.readAt ? 500 : 600 }}>{n.title}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.45 }}>{n.message}</div>
+                        <div className="tnum" style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>{notifWhen(n.createdAt)}</div>
+                      </div>
+                    </button>
+                  ))}
+
+                  {feed.hasNextPage && (
+                    <button
+                      onClick={() => feed.fetchNextPage()}
+                      disabled={feed.isFetchingNextPage}
+                      style={{ width: "100%", padding: "11px", fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}
+                    >
+                      {feed.isFetchingNextPage ? "Loading…" : "Load older"}
+                    </button>
+                  )}
+                </div>
+                <button onClick={() => { setRoute("numbers"); setNotifOpen(false); }} style={{ width: "100%", padding: "11px", fontSize: 12.5, fontWeight: 500, color: "var(--accent)", borderTop: "1px solid var(--border)" }}>View all messages</button>
               </div>
             </>
           )}

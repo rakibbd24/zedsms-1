@@ -1,5 +1,34 @@
 import { api } from "./client";
 
+// my-numbers returns `type: "shared" | "private"` but no mobile_number_type_id,
+// so derive the id the number endpoints expect: shared → 1, private → 2.
+function numberTypeIdOf(number) {
+  const id = Number(number?.mobile_number_type_id);
+  if (id === 1 || id === 2) return id;
+  return (number?.type || "").toLowerCase() === "private" ? 2 : 1;
+}
+
+// Shared and private numbers live in different tables, so an id alone is ambiguous
+// (a shared and a private number can share one). Callers pass the type they already
+// know from the list; the my-numbers lookup is only a fallback.
+async function resolveTypeId(numberId, typeId) {
+  if (typeId === 1 || typeId === 2) return typeId;
+  const numbers = await getNumbers();
+  const number = numbers.find((n) => n.id === numberId);
+  if (!number) throw new Error("Number not found");
+  return numberTypeIdOf(number);
+}
+
+// Endpoints signal failure in the body with HTTP 200: { message: "error", data }
+// (most) or { status: false, message } (number-transfer).
+function assertOk(res, fallback) {
+  if (res?.status === false) throw new Error(res.message || fallback);
+  if (typeof res?.message === "string" && res.message !== "success" && res.status !== true) {
+    throw new Error(typeof res.data === "string" ? res.data : fallback);
+  }
+  return res;
+}
+
 // Get user's virtual numbers
 export async function getNumbers() {
   try {
@@ -54,78 +83,84 @@ export async function getNumberMessages(numberId) {
   }
 }
 
-// Purchase a virtual number
-export async function buyNumber(data) {
-  return api.post("/user/purchase-number", data);
-}
-
 // Get extension plans and pricing for a number
-export async function getNumberExtensionPlans(numberId) {
+export async function getNumberExtensionPlans(numberId, typeId) {
   try {
-    console.log("Fetching renewal plans for number:", numberId);
-    const numbers = await getNumbers();
-    const number = numbers.find(n => n.id === numberId);
-
-    if (!number) {
-      throw new Error("Number not found");
-    }
-
-    // Map type to mobile_number_type_id: "private" → 2, "shared" → 1
-    let typeId = number?.mobile_number_type_id;
-    if (!typeId) {
-      const typeStr = (number?.type || "").toLowerCase();
-      typeId = typeStr.includes("private") ? 2 : 1;
-    }
-
-    console.log("Number type mapping:", { type: number?.type, typeId });
-
     const response = await api.post(`/user/extent-number-price`, {
       mobile_number_id: numberId,
-      mobile_number_type_id: typeId
+      mobile_number_type_id: await resolveTypeId(numberId, typeId)
     });
-
-    console.log("Renewal plans response:", response);
-
-    if (response?.plans && Array.isArray(response.plans)) {
-      console.log("✓ Got renewal plans:", response.plans);
-      return response.plans;
-    }
-
+    if (response?.plans && Array.isArray(response.plans)) return response.plans;
     return [];
   } catch (err) {
     console.error("Renewal plans error:", err.message);
-    // Return empty array on error - modal will use fallback pricing
+    // Return empty array on error - modal shows "plans not available"
     return [];
   }
 }
 
 // Extend a number
-export async function extendNumber(numberId, { plan }) {
+export async function extendNumber(numberId, { plan, typeId }) {
   try {
-    console.log("Extending number:", numberId, { plan });
-    const numbers = await getNumbers();
-    const number = numbers.find(n => n.id === numberId);
-    return api.post(`/user/extent-number`, {
+    const res = await api.post(`/user/extent-number`, {
       mobile_number_id: numberId,
-      mobile_number_type_id: number?.mobile_number_type_id || 1,
-      plan: plan
+      mobile_number_type_id: await resolveTypeId(numberId, typeId),
+      rent_time_id: plan
     });
+    // rejections (insufficient balance, 6-month limit, …) come back as 200 + message "error"
+    return assertOk(res, "Extension failed");
   } catch (err) {
     console.error("Extend error:", err.status, err.body, err.message);
     throw new Error(`Number extension failed: ${err.body?.message || err.message}`);
   }
 }
 
-// Release/delete a number
-export async function releaseNumber(numberId) {
+// Price to restore an expired number — call before restore-number so the user
+// sees exactly what will be charged. total = monthly_fee + restore_fee (USD).
+// Ineligible numbers (still active, past the 7-day window, unsupported carrier,
+// no pricing) come back as HTTP 200 with message "error" and the reason in data.
+export async function getRestoreNumberPrice(numberId) {
+  const res = await api.post(`/user/restore-number-price`, {
+    mobile_number_id: numberId
+  });
+  if (res?.message !== "success") {
+    throw new Error(typeof res?.data === "string" ? res.data : "Could not load the restore price");
+  }
+  return {
+    monthlyFee: parseFloat(res.monthly_fee) || 0,
+    restoreFee: parseFloat(res.restore_fee) || 0,
+    total: parseFloat(res.total) || 0
+  };
+}
+
+// Restore an expired number inside its post-expiry grace window.
+// POST /user/restore-number with only the number id — the backend charges the
+// total quoted by restore-number-price from the wallet. A failed restore still
+// returns 200 with message !== "success".
+export async function restoreNumber(numberId) {
   try {
-    console.log("Releasing number:", numberId);
-    const numbers = await getNumbers();
-    const number = numbers.find(n => n.id === numberId);
-    return api.post(`/user/cancel-number`, {
-      mobile_number_id: numberId,
-      mobile_number_type_id: number?.mobile_number_type_id || 1
+    console.log("Restoring number:", numberId);
+    const res = await api.post(`/user/restore-number`, {
+      mobile_number_id: numberId
     });
+    if (res?.message && res.message !== "success") {
+      throw new Error(typeof res.data === "string" ? res.data : "Restore failed");
+    }
+    return res;
+  } catch (err) {
+    console.error("Restore error:", err.status, err.body, err.message);
+    throw new Error(`Number restore failed: ${err.body?.message || err.message}`);
+  }
+}
+
+// Release/delete a number
+export async function releaseNumber(numberId, typeId) {
+  try {
+    const res = await api.post(`/user/cancel-number`, {
+      mobile_number_id: numberId,
+      mobile_number_type_id: await resolveTypeId(numberId, typeId)
+    });
+    return assertOk(res, "Release failed");
   } catch (err) {
     console.error("Release error:", err.status, err.body, err.message);
     throw new Error(`Number release failed: ${err.body?.message || err.message}`);
@@ -133,22 +168,13 @@ export async function releaseNumber(numberId) {
 }
 
 // Rename/label a number
-export async function renameNumber(numberId, label) {
+export async function renameNumber(numberId, label, typeId) {
   try {
-    console.log("Renaming number:", numberId, { label });
-    const numbers = await getNumbers();
-    const number = numbers.find(n => n.id === numberId);
-
-    if (!number) {
-      throw new Error("Number not found");
-    }
-
-    // Determine type: "private" or "shared"
-    const type = number.type === "private" ? "private" : "shared";
-
-    return api.post(`/user/set-label`, {
+    const resolved = await resolveTypeId(numberId, typeId);
+    // set-label wants the type as a word, and fails with a proper 4xx
+    return await api.post(`/user/set-label`, {
       number_id: numberId,
-      type: type,
+      type: resolved === 2 ? "private" : "shared",
       label: label || null
     });
   } catch (err) {
@@ -158,16 +184,15 @@ export async function renameNumber(numberId, label) {
 }
 
 // Transfer a number to another user
-export async function transferNumber(numberId, toZedId) {
+export async function transferNumber(numberId, toZedId, typeId) {
   try {
-    console.log("Transferring number:", numberId, { recipient: toZedId });
-    const numbers = await getNumbers();
-    const number = numbers.find(n => n.id === numberId);
-    return api.post(`/user/number-transfer`, {
+    const res = await api.post(`/user/number-transfer`, {
       mobile_number_id: numberId,
-      mobile_number_type_id: number?.mobile_number_type_id || 1,
+      mobile_number_type_id: await resolveTypeId(numberId, typeId),
       recipient: toZedId
     });
+    // "User not found", "You cannot transfer to yourself", … arrive as 200 + status false
+    return assertOk(res, "Transfer failed");
   } catch (err) {
     console.error("Transfer error:", err.status, err.body, err.message);
     throw new Error(`Number transfer failed: ${err.body?.message || err.message}`);
@@ -175,16 +200,15 @@ export async function transferNumber(numberId, toZedId) {
 }
 
 // Update auto-renew setting
-export async function updateAutoRenew(numberId, enabled) {
+export async function updateAutoRenew(numberId, enabled, typeId) {
   try {
-    console.log("Updating auto-renew:", numberId, { auto_renew: enabled });
-    const numbers = await getNumbers();
-    const number = numbers.find(n => n.id === numberId);
-    return api.post(`/user/auto-renew`, {
+    const res = await api.post(`/user/auto-renew`, {
       mobile_number_id: numberId,
-      mobile_number_type_id: number?.mobile_number_type_id || 1,
+      mobile_number_type_id: await resolveTypeId(numberId, typeId),
       auto_renew: enabled ? 1 : 0
     });
+    // rejections (expired number, not the owner, …) come back as 200 + message "error"
+    return assertOk(res, "Auto-renew update failed");
   } catch (err) {
     console.error("Auto-renew error:", err.status, err.body, err.message);
     throw new Error(`Failed to update auto-renew: ${err.body?.message || err.message}`);
@@ -198,49 +222,4 @@ export async function sendSmsFromNumber(numberId, { to, body }) {
   } catch (err) {
     throw new Error("Failed to send SMS");
   }
-}
-
-// Get available mobile number countries
-export async function getMobileCountries() {
-  return api.get("/mobile-number-countries");
-}
-
-// Get mobile number providers
-export async function getMobileProviders() {
-  return api.get("/mobile-number-providers");
-}
-
-// Get specific mobile provider details
-export async function getMobileProvider(providerId) {
-  return api.get(`/mobile-number-providers/${providerId}`);
-}
-
-// Get mobile rent times
-export async function getMobileRentTimes() {
-  return api.get("/mobile-number-rent-times");
-}
-
-// Get private number countries
-export async function getPrivateCountries() {
-  return api.get("/private-number-countries");
-}
-
-// Get private number plans
-export async function getPrivatePlans(countryId) {
-  return api.get("/private-number-plans", { params: { country_id: countryId } });
-}
-
-// Get available Telnyx numbers
-export async function getTelnyxNumbers(params) {
-  return api.get("/telnyx/available-numbers", { params });
-}
-
-// Get available cloud numbers
-export async function getCloudNumbers(params) {
-  return api.get("/cloud-numbers/available", { params });
-}
-
-// Get available numbers (POST)
-export async function getAvailableNumbers(data) {
-  return api.post("/get-numbers", data);
 }
