@@ -270,6 +270,23 @@ const HomeScreen = ({ setRoute, openNumber }) => {
   );
 };
 
+// Placeholder rows shown while a number's messages load, so the panel keeps its
+// shape instead of flashing an empty state and then jumping to content.
+const MessageSkeleton = ({ rows = 4 }) => (
+  <div>
+    {Array.from({ length: rows }).map((_, i) => (
+      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 0", borderBottom: "1px solid var(--border)", opacity: 1 - i * 0.18 }}>
+        <div className="loading-shimmer" style={{ width: 48, height: 48, borderRadius: 12, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="loading-shimmer" style={{ height: 11, width: `${38 + (i % 3) * 12}%`, borderRadius: 6, marginBottom: 9 }} />
+          <div className="loading-shimmer" style={{ height: 9, width: "92%", borderRadius: 6, marginBottom: 6 }} />
+          <div className="loading-shimmer" style={{ height: 9, width: `${55 + (i % 2) * 20}%`, borderRadius: 6 }} />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 // ============ MY NUMBERS (master-detail inbox) ============
 const RENT_OPTS = [{ d: 7, label: "1 week" }, { d: 14, label: "2 weeks" }, { d: 30, label: "1 month" }, { d: 90, label: "3 months" }];
 // pricing helpers (svcPriceOf / countryRentOf / weeklyPriceOf) come from data.jsx
@@ -682,7 +699,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   const current = numbers.find((n) => n.uid === selected) || numbers.find((n) => n.id === selected) || list[0];
 
   // Get messages for current number
-  const { data: rawMessages = [] } = useMessages(current?.id);
+  const { data: rawMessages = [], isLoading: messagesLoading, isFetching: messagesFetching } = useMessages(current?.id);
 
   // Normalize messages from API - separate incoming and outgoing
   const { incomingMessages, outgoingMessages } = React.useMemo(() => {
@@ -779,6 +796,10 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   };
 
   const doTransfer = (to) => {
+    if (current && isLapsed(current.status)) {
+      showToast("Expired numbers can't be transferred — reactivate it first", "danger");
+      return;
+    }
     if (current) {
       const lbl = current.number;
       transferMutation.mutate({ numberId: current.id, toZedId: to, typeId: current.mobile_number_type_id }, {
@@ -867,9 +888,12 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
     );
   };
 
-  const MenuRow = ({ icon, label, sub, danger, right, onClick }) => (
-    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "9px 11px", borderRadius: 9, textAlign: "left", color: danger ? "var(--danger)" : "var(--text)" }}
-      onMouseEnter={(e) => e.currentTarget.style.background = danger ? "var(--danger-soft)" : "var(--surface-2)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+  const MenuRow = ({ icon, label, sub, danger, right, onClick, disabled }) => (
+    <button onClick={disabled ? undefined : onClick} disabled={disabled} title={disabled ? sub : undefined}
+      style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "9px 11px", borderRadius: 9, textAlign: "left",
+        color: disabled ? "var(--text-faint)" : danger ? "var(--danger)" : "var(--text)", cursor: disabled ? "not-allowed" : "pointer" }}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = danger ? "var(--danger-soft)" : "var(--surface-2)"; }}
+      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
       <Icon name={icon} size={16} />
       <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 450 }}>{label}</div>{sub && <div style={{ fontSize: 11, color: "var(--text-faint)" }}>{sub}</div>}</div>
       {right}
@@ -983,7 +1007,10 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                         <MenuRow icon="user" label="Rename / add label" sub={current.label || "No label set"} onClick={() => { setMenuOpen(false); setModal("rename"); }} />
                         <MenuRow icon="refresh" label="Auto-renew" sub={current.autoRenew ? "On — renews before expiry" : "Off"} onClick={toggleAuto}
                           right={<span style={{ width: 34, height: 20, borderRadius: 99, background: current.autoRenew ? "var(--accent)" : "var(--surface-3)", padding: 2.5, flexShrink: 0 }}><span style={{ display: "block", width: 15, height: 15, borderRadius: 99, background: "#fff", transform: current.autoRenew ? "translateX(14px)" : "none", transition: "transform 0.18s" }} /></span>} />
-                        <MenuRow icon="transfer" label="Transfer number" sub="Move to another user" onClick={() => { setMenuOpen(false); setModal("transfer"); }} />
+                        <MenuRow icon="transfer" label="Transfer number"
+                          sub={isLapsed(current.status) ? "Expired numbers can't be transferred" : "Move to another user"}
+                          disabled={isLapsed(current.status)}
+                          onClick={() => { setMenuOpen(false); setModal("transfer"); }} />
                         <div style={{ height: 1, background: "var(--border)", margin: "5px 4px" }} />
                         <MenuRow icon="trash" label="Release number" sub="Cancel & remove" danger onClick={() => { setMenuOpen(false); setModal("release"); }} />
                       </div>
@@ -1004,6 +1031,13 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                   <MsgTab id="inbox" label="Inbox" count={thread.length} icon="inbox" />
                   {isPrivate && <MsgTab id="sent" label="Sent" count={sentThread.length} icon="send" />}
                 </div>
+                {/* background refresh, with content already on screen */}
+                {messagesFetching && !messagesLoading && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--text-faint)", animation: "fadeIn 0.2s ease both" }}>
+                    <span style={{ width: 11, height: 11, borderRadius: "50%", border: "2px solid var(--border-strong)", borderTopColor: "var(--accent)", animation: "spin 0.8s linear infinite" }} />
+                    Updating
+                  </span>
+                )}
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, height: 34, padding: "0 11px", borderRadius: 9, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-faint)" }}>
                     <Icon name="search" size={14} />
@@ -1028,10 +1062,11 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                         </div>
                       )}
                       <div style={{ maxHeight: "52vh", overflowY: "auto", padding: "6px 8px 10px" }}>
-                        {all.length === 0 ? <Empty icon="send" label="No sent messages yet — tap Send SMS to start a conversation" />
+                        {messagesLoading ? <MessageSkeleton rows={3} />
+                          : all.length === 0 ? <Empty icon="send" label="No sent messages yet — tap Send SMS to start a conversation" />
                           : rows.length === 0 ? <Empty icon="search" label={`No sent messages match “${msgQuery}”`} />
-                          : rows.map((m) => (
-                            <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "13px 12px", borderRadius: 12, borderBottom: "1px solid var(--border)" }}>
+                          : rows.map((m, i) => (
+                            <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "13px 12px", borderRadius: 12, borderBottom: "1px solid var(--border)", animation: "slideUp 0.26s cubic-bezier(0.22,1,0.36,1) both", animationDelay: `${Math.min(i, 6) * 35}ms` }}>
                               <span style={{ width: 38, height: 38, borderRadius: 11, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="send" size={17} /></span>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
@@ -1059,9 +1094,10 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                       </div>
                     )}
                     <div style={{ maxHeight: "52vh", overflowY: "auto", padding: "6px 8px 10px" }}>
-                      {all.length === 0 ? <Empty icon="msg" label="No messages yet — codes appear here instantly" />
+                      {messagesLoading ? <MessageSkeleton />
+                        : all.length === 0 ? <Empty icon="msg" label="No messages yet — codes appear here instantly" />
                         : rows.length === 0 ? <Empty icon="search" label={`No messages match “${msgQuery}”`} />
-                        : rows.map((m) => {
+                        : rows.map((m, i) => {
                           const getAvatarColor = (from) => {
                             const lower = from.toLowerCase();
                             if (lower.includes("whatsapp")) return "#25D366";
@@ -1072,7 +1108,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                           };
                           const displayText = m.from.startsWith("+") ? m.from.slice(1, 2) : m.from.substring(0, 1);
                           return (
-                            <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
+                            <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 0", borderBottom: "1px solid var(--border)", animation: "slideUp 0.26s cubic-bezier(0.22,1,0.36,1) both", animationDelay: `${Math.min(i, 6) * 35}ms` }}>
                               <div style={{ width: 48, height: 48, borderRadius: 12, background: getAvatarColor(m.from), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <span style={{ fontSize: 20, fontWeight: 600, color: "white" }}>{displayText.toUpperCase()}</span>
                               </div>
