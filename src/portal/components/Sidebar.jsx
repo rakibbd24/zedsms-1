@@ -3,6 +3,7 @@ import { Icon } from "./Icon";
 import { LogoMark } from "./LogoMark";
 import { NAV } from "./nav";
 import { useUser } from "../hooks/useUser";
+import { useBalance } from "../hooks/useBalance";
 
 const NavItem = ({ item, route, setRoute, setMobileOpen }) => {
   const active = route === item.id;
@@ -23,7 +24,10 @@ const NavItem = ({ item, route, setRoute, setMobileOpen }) => {
 
 export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }) => {
   const { data: user } = useUser();
-  const balance = typeof user?.balance === 'number' ? user.balance : 0;
+  const { data: balanceData, isLoading: isBalanceLoading } = useBalance({
+    pollingInterval: 30000, // Refresh every 30 seconds
+  });
+  const balance = balanceData?.amount || 0;
   const email = user?.email ?? "";
   const zedId = user?.zedId ?? "";
   const userInitial = (email[0] || "?").toUpperCase();
@@ -87,7 +91,11 @@ export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }
           <div style={{ padding: "12px 13px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)" }}>
             <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 3 }}>Available balance</div>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-              <span className="mono tnum" style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-0.02em" }}>${balance.toFixed(2)}</span>
+              {isBalanceLoading ? (
+                <span className="mono" style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-0.02em", opacity: 0.6 }}>...</span>
+              ) : (
+                <span className="mono tnum" style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-0.02em" }}>${balance.toFixed(2)}</span>
+              )}
               <button onClick={() => setRoute("topup")} style={{ fontSize: 12, fontWeight: 550, color: "var(--accent)", whiteSpace: "nowrap", flexShrink: 0 }}>Top up</button>
             </div>
           </div>

@@ -69,6 +69,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/app"
+              element={
+                <ProtectedRoute>
+                  <Portal />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

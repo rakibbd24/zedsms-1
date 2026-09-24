@@ -19,7 +19,12 @@ export function useExtendNumber() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ numberId, plan, typeId }) => extendNumber(numberId, { plan, typeId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["balance"] });
+      qc.invalidateQueries({ queryKey: ["numbers"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["recent-activity"] });
+    },
   });
 }
 
@@ -28,10 +33,12 @@ export function useRestoreNumber() {
   return useMutation({
     mutationFn: (numberId) => restoreNumber(numberId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["numbers"] });
       // the reactivation fee comes out of the wallet, so the balance is stale too
+      qc.invalidateQueries({ queryKey: ["balance"] });
+      qc.invalidateQueries({ queryKey: ["numbers"] });
       qc.invalidateQueries({ queryKey: ["me"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["recent-activity"] });
     },
   });
 }

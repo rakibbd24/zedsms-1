@@ -10,6 +10,7 @@ import { Empty } from "../components/ui/Empty";
 import { Modal } from "../components/ui/Modal";
 import { Toast } from "../components/ui/Toast";
 import { useUser } from "../hooks/useUser";
+import { useBalance } from "../hooks/useBalance";
 import { useSharedCountries, useSharedServices, useSharedNumbers, useSharedRentTimes, usePrivateCountries, usePrivateAvailableNumbers, usePrivatePlans, usePurchaseNumber } from "../hooks/useBuy";
 import { privateUpstreamOf, sharedPriceOf } from "../api/buy";
 import { usePaymentGateways, useStartTopUp } from "../hooks/useTopUp";
@@ -180,9 +181,9 @@ const BuyScreen = ({ setRoute, openNumber }) => {
   const toastTimer = React.useRef(null);
   const showToast = (msg, tone = "success") => { clearTimeout(toastTimer.current); setToast({ msg, tone }); toastTimer.current = setTimeout(() => setToast(null), 3200); };
 
-  const { data: user } = useUser();
-  const balanceKnown = typeof user?.balance === "number";
-  const balance = balanceKnown ? user.balance : 0;
+  const { data: balanceData } = useBalance();
+  const balance = balanceData?.amount || 0;
+  const balanceKnown = balanceData !== undefined;
   const purchase = usePurchaseNumber();
   const processing = purchase.isPending;
   React.useEffect(() => {
@@ -598,9 +599,9 @@ const TopUpScreen = () => {
   const [methodId, setMethodId] = React.useState(null);
   const [error, setError] = React.useState(null);
 
-  const { data: user } = useUser();
-  const balanceKnown = typeof user?.balance === "number";
-  const balance = balanceKnown ? user.balance : 0;
+  const { data: balanceData } = useBalance();
+  const balance = balanceData?.amount || 0;
+  const balanceKnown = balanceData !== undefined;
 
   const gatewaysQ = usePaymentGateways();
   const gateways = React.useMemo(() => gatewaysQ.data || [], [gatewaysQ.data]);
@@ -824,8 +825,9 @@ const TransferScreen = () => {
   const showToast = (msg, tone = "success") => { clearTimeout(toastTimer.current); setToast({ msg, tone }); toastTimer.current = setTimeout(() => setToast(null), 3600); };
 
   const { data: user } = useUser();
-  const balanceKnown = typeof user?.balance === "number";
-  const balance = balanceKnown ? user.balance : 0;
+  const { data: balanceData } = useBalance();
+  const balance = balanceData?.amount || 0;
+  const balanceKnown = balance > 0 || (balanceData !== undefined);
   const { data: txPage } = useTransactions();
   const recents = React.useMemo(() => recentRecipientsFrom(txPage?.rows || []), [txPage]);
 

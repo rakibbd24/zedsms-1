@@ -66,8 +66,10 @@ export default function PaymentReturn() {
       if (stopped) return;
       if (phase !== "pending") clearPendingTopUp();
       if (phase === "success") {
+        qc.invalidateQueries({ queryKey: ["balance"] });
         qc.invalidateQueries({ queryKey: ["me"] });
         qc.invalidateQueries({ queryKey: ["transactions"] });
+        qc.invalidateQueries({ queryKey: ["recent-activity"] });
       }
       setState({ phase, message });
     };

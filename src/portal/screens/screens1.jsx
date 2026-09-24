@@ -13,6 +13,7 @@ import { countryRentOf, svcPriceOf, weeklyPriceOf } from "../lib/pricing";
 import { useNumbers, useExtendNumber, useRestoreNumber, useRestoreNumberPrice, useTransferNumber, useRenameNumber, useReleaseNumber, useUpdateAutoRenew, useSendSmsFromNumber, useNumberExtensionPlans } from "../hooks/useNumbers";
 import { useMessages, useRecentMessages } from "../hooks/useMessages";
 import { useUser } from "../hooks/useUser";
+import { useBalance } from "../hooks/useBalance";
 
 // ============ HOME / OVERVIEW ============
 // Format expiry date from timestamp
@@ -174,6 +175,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
   const { data: numbers = [], isLoading: numbersLoading } = useNumbers();
   const { data: messages = [], isLoading: messagesLoading } = useRecentMessages();
   const { data: user } = useUser();
+  const { data: balanceData } = useBalance();
 
   const active = numbers.filter((n) => n.status === "active");
   const expiring = active.filter((n) => n.days <= 7);
@@ -211,7 +213,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
 
       {/* stats */}
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-        <StatCard label="Balance" value={`$${(typeof user?.balance === 'number' ? user.balance : 0).toFixed(2)}`} sub="Across all wallets" icon="wallet" tone="var(--accent)" />
+        <StatCard label="Balance" value={`$${(balanceData?.amount || 0).toFixed(2)}`} sub="Across all wallets" icon="wallet" tone="var(--accent)" />
         <StatCard label="Active numbers" value={active.length} sub={`${expiring.length} expiring soon`} icon="grid" tone="var(--success)" />
         <StatCard label="Recent messages" value={messages.filter((m) => /min|hr/.test(m.time)).length} sub={`${unreadCodes} unread`} icon="msg" tone="var(--accent)" />
         <StatCard label="Spent this week" value="$3.95" sub="6 purchases" icon="receipt" tone="var(--text-faint)" />
@@ -1137,7 +1139,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
     </div>
 
     {current && <ExtendModal number={current} open={modal === "renew"} onClose={() => setModal(null)} onConfirm={doExtend} plans={extensionPlans} isLoading={extensionPlansLoading} />}
-    {current && <RestoreModal number={current} open={modal === "restore"} onClose={() => setModal(null)} onConfirm={doRestore} price={restorePrice} isLoading={restorePriceLoading} error={restorePriceError} balance={typeof user?.balance === "number" ? user.balance : 0} isSubmitting={restoreMutation.isPending} />}
+    {current && <RestoreModal number={current} open={modal === "restore"} onClose={() => setModal(null)} onConfirm={doRestore} price={restorePrice} isLoading={restorePriceLoading} error={restorePriceError} balance={balanceData?.amount || 0} isSubmitting={restoreMutation.isPending} />}
     {current && <TransferModal number={current} open={modal === "transfer"} onClose={() => setModal(null)} onConfirm={doTransfer} />}
     {current && <RenameModal number={current} open={modal === "rename"} onClose={() => setModal(null)} onConfirm={doRename} />}
     {current && <ReleaseModal number={current} open={modal === "release"} onClose={() => setModal(null)} onConfirm={doRelease} />}

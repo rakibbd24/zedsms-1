@@ -15,8 +15,11 @@ export function useTransferBalance() {
   return useMutation({
     mutationFn: ({ recipient, amount }) => transferBalance({ recipient, amount }),
     onSuccess: () => {
+      // Invalidate all balance-related queries to ensure instant updates across all pages
+      qc.invalidateQueries({ queryKey: ["balance"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["recent-activity"] });
     },
   });
 }

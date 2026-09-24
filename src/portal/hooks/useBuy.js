@@ -51,9 +51,12 @@ export function usePurchaseNumber() {
   return useMutation({
     mutationFn: purchaseNumber,
     onSuccess: () => {
+      // Invalidate balance first (most important for user awareness)
+      qc.invalidateQueries({ queryKey: ["balance"] });
       qc.invalidateQueries({ queryKey: ["numbers"] });
       qc.invalidateQueries({ queryKey: ["me"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["recent-activity"] });
       qc.invalidateQueries({ queryKey: ["buy", "shared-numbers"] });
     },
   });

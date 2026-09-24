@@ -1,5 +1,6 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { TweaksPanel, TweakSection, TweakColor, TweakRadio } from "./components/TweaksPanel";
@@ -141,11 +142,17 @@ function AppContent({ onLogoutRedirect }) {
     "density": "regular",
     "corners": "soft"
   }/*EDITMODE-END*/;
-  // /app?view=topup (etc.) opens a specific screen — used by the payment return page
-  const [route, setRoute] = React.useState(() => {
-    const view = new URLSearchParams(window.location.search).get("view");
-    return ["home", "numbers", "buy", "topup", "transfer", "transactions", "settings"].includes(view) ? view : "home";
-  });
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Extract route from pathname (e.g., /app/home -> home)
+  const getCurrentRoute = () => {
+    const path = location.pathname;
+    const match = path.match(/\/app\/([a-z]+)/);
+    return match ? match[1] : "home";
+  };
+
+  const route = getCurrentRoute();
   const [theme, setTheme] = React.useState(() => localStorage.getItem("zedsms-theme") || "light");
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [pendingNumber, setPendingNumber] = React.useState(null);
@@ -192,7 +199,14 @@ function AppContent({ onLogoutRedirect }) {
 
   const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
-  const goNumbers = (id) => { setPendingNumber(id); setRoute("numbers"); };
+  const goNumbers = (id) => {
+    setPendingNumber(id);
+    navigate("/app/numbers");
+  };
+
+  const setRoute = (newRoute) => {
+    navigate(`/app/${newRoute}`);
+  };
 
   React.useEffect(() => {
     window.scrollTo(0, 0);
@@ -203,15 +217,6 @@ function AppContent({ onLogoutRedirect }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [route]);
-
-  let screen;
-  if (route === "home") screen = <HomeScreen setRoute={setRoute} openNumber={goNumbers} />;
-  else if (route === "numbers") screen = <NumbersScreen initialNumberId={pendingNumber} clearInitial={() => setPendingNumber(null)} />;
-  else if (route === "buy") screen = <BuyScreen setRoute={setRoute} openNumber={goNumbers} />;
-  else if (route === "topup") screen = <TopUpScreen />;
-  else if (route === "transfer") screen = <TransferScreen />;
-  else if (route === "transactions") screen = <TransactionsScreen />;
-  else if (route === "settings") screen = <SettingsScreen theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout} />;
 
   return (
     <>
@@ -240,7 +245,16 @@ function AppContent({ onLogoutRedirect }) {
             </TweaksPanel>
           )}
           <main ref={scrollRef} className="content-inner">
-            {screen}
+            <Routes>
+              <Route path="/home" element={<HomeScreen setRoute={setRoute} openNumber={goNumbers} />} />
+              <Route path="/numbers" element={<NumbersScreen initialNumberId={pendingNumber} clearInitial={() => setPendingNumber(null)} />} />
+              <Route path="/buy" element={<BuyScreen setRoute={setRoute} openNumber={goNumbers} />} />
+              <Route path="/topup" element={<TopUpScreen />} />
+              <Route path="/transfer" element={<TransferScreen />} />
+              <Route path="/transactions" element={<TransactionsScreen />} />
+              <Route path="/settings" element={<SettingsScreen theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout} />} />
+              <Route path="/" element={<HomeScreen setRoute={setRoute} openNumber={goNumbers} />} />
+            </Routes>
           </main>
         </div>
       </div>
