@@ -148,8 +148,17 @@ const NotificationsSettings = () => {
               style={{ width: "100%", height: 44, padding: "0 14px", borderRadius: 11, border: `1px solid ${emailErr ? "var(--danger)" : "var(--border-strong)"}`, background: "var(--surface-2)", fontSize: 14, color: "var(--text)", outline: "none" }} />
             {emailErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: 9 }}><Icon name="info" size={13} /> {emailErr}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-              <Button variant="subtle" full onClick={() => setEmailModal(false)}>Cancel</Button>
-              <Button full icon="plus" disabled={!/.+@.+\..+/.test(emailVal) || addCh.isPending} onClick={submitEmail}>{addCh.isPending ? "Sending…" : "Send code"}</Button>
+              <Button variant="subtle" full onClick={() => setEmailModal(false)} disabled={addCh.isPending}>Cancel</Button>
+              <Button full icon={addCh.isPending ? undefined : "plus"} disabled={!/.+@.+\..+/.test(emailVal) || addCh.isPending} onClick={submitEmail}>
+                {addCh.isPending ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                    Sending…
+                  </span>
+                ) : (
+                  "Send code"
+                )}
+              </Button>
             </div>
           </>
         ) : (
@@ -159,8 +168,17 @@ const NotificationsSettings = () => {
             <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--text-faint)" }}>Sent to {emailVal}. The code is valid for 24 hours.</p>
             {emailErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: 9 }}><Icon name="info" size={13} /> {emailErr}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-              <Button variant="subtle" full onClick={() => setEmailStep("address")}>Back</Button>
-              <Button full icon="check" disabled={emailCode.length !== 6 || verifyEmailCh.isPending} onClick={submitEmailCode}>{verifyEmailCh.isPending ? "Verifying…" : "Verify"}</Button>
+              <Button variant="subtle" full onClick={() => setEmailStep("address")} disabled={verifyEmailCh.isPending}>Back</Button>
+              <Button full icon={verifyEmailCh.isPending ? undefined : "check"} disabled={emailCode.length !== 6 || verifyEmailCh.isPending} onClick={submitEmailCode}>
+                {verifyEmailCh.isPending ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                    Verifying…
+                  </span>
+                ) : (
+                  "Verify"
+                )}
+              </Button>
             </div>
           </>
         )}
@@ -198,8 +216,17 @@ const NotificationsSettings = () => {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <Button variant="subtle" full onClick={() => setTgModal(false)}>Cancel</Button>
-              <Button full icon="check" disabled={!tgCode || checkTg.isPending} onClick={verifyTg}>{checkTg.isPending ? "Checking…" : "I've sent it"}</Button>
+              <Button variant="subtle" full onClick={() => setTgModal(false)} disabled={checkTg.isPending}>Cancel</Button>
+              <Button full icon={checkTg.isPending ? undefined : "check"} disabled={!tgCode || checkTg.isPending} onClick={verifyTg}>
+                {checkTg.isPending ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                    Checking…
+                  </span>
+                ) : (
+                  "I've sent it"
+                )}
+              </Button>
             </div>
           </div>
         ) : (

@@ -17,8 +17,8 @@ export async function getRecentMessages() {
       messages = response;
     }
 
-    // Normalize messages for display
-    return messages.map(m => ({
+    // Normalize messages for display and limit to 10 most recent
+    return messages.slice(0, 10).map(m => ({
       id: m.id,
       from: m.sms_from || m.to_number || "Unknown",
       body: m.sms_content || m.message_body || m.body || "",

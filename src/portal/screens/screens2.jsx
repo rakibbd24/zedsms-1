@@ -930,8 +930,15 @@ const TransferScreen = () => {
           <span className="mono tnum" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", color: overBalance ? "var(--danger)" : "var(--text)" }}>{balanceKnown ? `$${Math.max(0, balance - amount).toFixed(2)}` : "…"}</span>
         </div>
         {error && <div style={{ marginBottom: 12 }}><BuyNotice tone="danger">{error}</BuyNotice></div>}
-        <Button full size="lg" icon="send" disabled={!valid || transfer.isPending} onClick={() => setConfirming(true)}>
-          {transfer.isPending ? "Sending…" : `Send $${amount.toFixed(2)}`}
+        <Button full size="lg" icon={transfer.isPending ? undefined : "send"} disabled={!valid || transfer.isPending} onClick={() => setConfirming(true)}>
+          {transfer.isPending ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Sending…
+            </span>
+          ) : (
+            `Send $${amount.toFixed(2)}`
+          )}
         </Button>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, fontSize: 11.5, color: "var(--text-faint)" }}>
           <Icon name="bolt" size={13} /> Arrives instantly · no fees
@@ -955,7 +962,16 @@ const TransferScreen = () => {
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <Button full variant="subtle" onClick={() => setConfirming(false)} disabled={transfer.isPending}>Cancel</Button>
-        <Button full icon="send" onClick={send} disabled={transfer.isPending}>{transfer.isPending ? "Sending…" : `Send $${amount.toFixed(2)}`}</Button>
+        <Button full icon={transfer.isPending ? undefined : "send"} onClick={send} disabled={transfer.isPending}>
+          {transfer.isPending ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Sending…
+            </span>
+          ) : (
+            `Send $${amount.toFixed(2)}`
+          )}
+        </Button>
       </div>
     </Modal>
     <Toast toast={toast} />
@@ -1392,7 +1408,14 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
             </Field>
             <div style={{ marginTop: 6, marginBottom: 22 }}>
               <Button onClick={submitPassword} disabled={!(curPwd && newPwd.length >= 8 && newPwd === confirmPwd) || changePwd.isPending}>
-                {changePwd.isPending ? "Updating…" : "Update password"}
+                {changePwd.isPending ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                    Updating…
+                  </span>
+                ) : (
+                  "Update password"
+                )}
               </Button>
             </div>
 
@@ -1488,8 +1511,17 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
       </Field>
       {emailErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: -8, marginBottom: 10 }}><Icon name="info" size={13} /> {emailErr}</div>}
       <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-        <Button variant="subtle" full onClick={() => setEmailFlow(null)}>Cancel</Button>
-        <Button full onClick={startEmailChange} disabled={!newEmail.trim() || requestEmail.isPending}>{requestEmail.isPending ? "Sending…" : "Send code"}</Button>
+        <Button variant="subtle" full onClick={() => setEmailFlow(null)} disabled={requestEmail.isPending}>Cancel</Button>
+        <Button full onClick={startEmailChange} disabled={!newEmail.trim() || requestEmail.isPending}>
+          {requestEmail.isPending ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Sending…
+            </span>
+          ) : (
+            "Send code"
+          )}
+        </Button>
       </div>
     </Modal>
 
@@ -1498,8 +1530,17 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
         className="mono tnum" style={{ ...settingsInput, height: 56, fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", borderColor: emailErr ? "var(--danger)" : "var(--border-strong)" }} />
       {emailErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: 9 }}><Icon name="info" size={13} /> {emailErr}</div>}
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-        <Button variant="subtle" full onClick={() => setEmailFlow("request")}>Back</Button>
-        <Button full onClick={confirmEmailChange} disabled={emailOtp.length !== 6 || verifyEmail.isPending}>{verifyEmail.isPending ? "Verifying…" : "Confirm email"}</Button>
+        <Button variant="subtle" full onClick={() => setEmailFlow("request")} disabled={verifyEmail.isPending}>Back</Button>
+        <Button full onClick={confirmEmailChange} disabled={emailOtp.length !== 6 || verifyEmail.isPending}>
+          {verifyEmail.isPending ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Verifying…
+            </span>
+          ) : (
+            "Confirm email"
+          )}
+        </Button>
       </div>
     </Modal>
 
@@ -1543,8 +1584,17 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
             className="mono tnum" style={{ ...settingsInput, height: 56, fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", borderColor: tfaErr ? "var(--danger)" : "var(--border-strong)" }} />
           {tfaErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: 9 }}><Icon name="info" size={13} /> {tfaErr}</div>}
           <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
-            <Button variant="subtle" full onClick={() => { setTfaStep(0); setTfaErr(""); }}>Back</Button>
-            <Button full onClick={verifyEnable} disabled={enable2faM.isPending}>{enable2faM.isPending ? "Verifying…" : "Verify & enable"}</Button>
+            <Button variant="subtle" full onClick={() => { setTfaStep(0); setTfaErr(""); }} disabled={enable2faM.isPending}>Back</Button>
+            <Button full onClick={verifyEnable} disabled={enable2faM.isPending}>
+              {enable2faM.isPending ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                  Verifying…
+                </span>
+              ) : (
+                "Verify & enable"
+              )}
+            </Button>
           </div>
         </div>
       )}
@@ -1561,8 +1611,17 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
       </Field>
       {tfaErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: -8, marginBottom: 8 }}><Icon name="info" size={13} /> {tfaErr}</div>}
       <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-        <Button variant="subtle" full onClick={closeTfa}>Keep enabled</Button>
-        <Button variant="danger" full onClick={confirmDisable} disabled={disable2faM.isPending}>{disable2faM.isPending ? "Disabling…" : "Disable 2FA"}</Button>
+        <Button variant="subtle" full onClick={closeTfa} disabled={disable2faM.isPending}>Keep enabled</Button>
+        <Button variant="danger" full onClick={confirmDisable} disabled={disable2faM.isPending}>
+          {disable2faM.isPending ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Disabling…
+            </span>
+          ) : (
+            "Disable 2FA"
+          )}
+        </Button>
       </div>
     </Modal>
 

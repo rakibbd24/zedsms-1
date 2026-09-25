@@ -172,16 +172,74 @@ const QuickBuy = ({ setRoute }) => {
 const HomeScreen = ({ setRoute, openNumber }) => {
   // Live data via React Query — this screen is the wired-up template; other
   // screens still read mocks/seed.js directly pending the same treatment.
-  const { data: numbers = [], isLoading: numbersLoading } = useNumbers();
+  const { data: rawNumbers = [], isLoading: numbersLoading } = useNumbers();
   const { data: messages = [], isLoading: messagesLoading } = useRecentMessages();
   const { data: user } = useUser();
   const { data: balanceData } = useBalance();
+  const extendMutation = useExtendNumber();
+
+  const [extendingNumber, setExtendingNumber] = React.useState(null);
+  const { data: extensionPlans = [], isLoading: extensionPlansLoading } = useNumberExtensionPlans(extendingNumber?.id, extendingNumber?.mobile_number_type_id);
+  const [toast, setToast] = React.useState(null);
+  const toastTimer = React.useRef(null);
+  const showToast = (msg, tone = "success") => { clearTimeout(toastTimer.current); setToast({ msg, tone }); toastTimer.current = setTimeout(() => setToast(null), 2600); };
+
+  // Calculate days remaining from expiry timestamp
+  const getDaysRemaining = (expiryDate) => {
+    if (!expiryDate) return 0;
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const diffMs = expiry - today;
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  };
+
+  // Normalize numbers with days calculation
+  const numbers = React.useMemo(() => {
+    return rawNumbers.map((n) => {
+      const expiryTs = n.expires_at || n.expiry;
+      const daysLeft = getDaysRemaining(expiryTs);
+
+      // Determine type ID and other details
+      let typeId = n.mobile_number_type_id;
+      if (!typeId) {
+        const typeStr = (n.type || "").toLowerCase();
+        typeId = typeStr.includes("private") ? 2 : 1;
+      }
+      const isPrivate = typeId === 2;
+
+      return {
+        ...n,
+        days: daysLeft,
+        expiresAt: expiryTs,
+        status: n.status || (daysLeft > 0 ? "active" : "expired"),
+        mobile_number_type_id: typeId,
+        type: isPrivate ? "Private" : "Shared",
+        country: n.country || "GB",
+        service: n.service_name || (isPrivate ? "Private" : "SMS"),
+        service_provider: n.service_provider || { name: isPrivate ? "Private" : "SMS" },
+        number: n.number || n.mobile_number || ""
+      };
+    });
+  }, [rawNumbers]);
 
   const active = numbers.filter((n) => n.status === "active");
-  const expiring = active.filter((n) => n.days <= 7);
+  const expiring = active.filter((n) => n.days <= 50);
   const unreadCodes = messages.filter((m) => m.unread).length;
   const [copied, setCopied] = React.useState(false);
   const copyId = () => { navigator.clipboard?.writeText(user?.zedId); setCopied(true); setTimeout(() => setCopied(false), 1600); };
+
+  const doExtend = (number, rentTimeId) => {
+    if (number) {
+      extendMutation.mutate({ numberId: number.id, plan: rentTimeId, typeId: number.mobile_number_type_id }, {
+        onSuccess: () => {
+          setExtendingNumber(null);
+          showToast(`${number.number} extended`);
+        },
+        onError: (err) => showToast(err?.message || "Failed to extend number", "danger")
+      });
+    }
+  };
 
   if (numbersLoading || messagesLoading || !user) {
     return (
@@ -231,7 +289,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
             <button onClick={() => setRoute("numbers")} style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)", display: "flex", alignItems: "center", gap: 3 }}>View all <Icon name="chevR" size={14} /></button>
           </div>
           <div style={{ padding: "0 8px 10px" }}>
-            {messages.slice(0, 5).map((m) => <CodeRow key={m.id} m={m} onOpen={() => openNumber(m.numberId)} />)}
+            {messages.slice(0, 10).map((m) => <CodeRow key={m.id} m={m} onOpen={() => openNumber(m.numberId)} />)}
           </div>
         </Card>
 
@@ -241,33 +299,55 @@ const HomeScreen = ({ setRoute, openNumber }) => {
 
           <Card style={{ overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 10px" }}>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Active numbers</h3>
-              <button onClick={() => setRoute("numbers")} style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>Manage</button>
+              <div>
+                <h3 style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Expiring Soon</h3>
+                <div style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{expiring.length} number{expiring.length !== 1 ? "s" : ""} (within 50 days)</div>
+              </div>
+              <button onClick={() => setRoute("numbers")} style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>View all</button>
             </div>
-            <div style={{ padding: "0 10px 12px" }}>
-              {active.slice(0, 3).map((n) => {
-                const countryIso = n.country?.iso || n.iso || "GB";
-                const phoneNumber = n.mobile_number || n.phone_number || n.number;
-                const serviceName = n.service_provider?.name || n.service || "SMS";
-                const numberType = n.mobile_number_type?.name || n.type || "Shared";
-                const daysLeft = n.rent_time?.days || n.days || 7;
+            <div style={{ padding: "8px 10px 12px", maxHeight: "400px", overflowY: "auto" }}>
+              {expiring.length === 0 ? (
+                <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--text-faint)", fontSize: 13 }}>
+                  No numbers expiring within 50 days
+                </div>
+              ) : (
+                expiring.sort((a, b) => (a.days || 0) - (b.days || 0)).map((n) => {
+                  const countryIso = n.country?.iso || n.iso || "GB";
+                  const phoneNumber = n.mobile_number || n.phone_number || n.number;
+                  const serviceName = n.service_provider?.name || n.service || "SMS";
+                  const numberType = n.mobile_number_type?.name || n.type || "Shared";
+                  const daysLeft = n.rent_time?.days || n.days || 10;
+                  const expiryDate = new Date(n.expiresAt || n.expires_at);
+                  const formattedDate = expiryDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-                return (
-                  <button key={n.id} onClick={() => openNumber(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 10px", borderRadius: 11, textAlign: "left" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface-2)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                    <FlagAvatar iso={countryIso} size={36} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="mono tnum" style={{ fontSize: 13.5, fontWeight: 500 }}>{phoneNumber}</div>
-                      <div style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{serviceName} · {numberType}</div>
+                  return (
+                    <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 10px", borderRadius: 11, marginBottom: 6, background: "var(--surface-2)", justifyContent: "space-between" }}>
+                      <button onClick={() => openNumber(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, padding: 0, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
+                        <FlagAvatar iso={countryIso} size={36} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="mono tnum" style={{ fontSize: 13.5, fontWeight: 500 }}>{phoneNumber}</div>
+                          <div style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{serviceName} · {numberType}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--text-faint)", marginTop: 2 }}>Expires {formattedDate}</div>
+                        </div>
+                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Badge tone={daysLeft <= 3 ? "danger" : daysLeft <= 5 ? "warning" : "accent"} className="tnum">{daysLeft}d</Badge>
+                        <button onClick={() => setExtendingNumber(n)} title="Extend this number" style={{ padding: "6px 11px", borderRadius: 9, background: "var(--accent)", color: "#fff", border: "none", fontSize: 12.5, fontWeight: 550, cursor: "pointer", flexShrink: 0, transition: "filter 0.16s" }}
+                          onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.08)"}
+                          onMouseLeave={(e) => e.currentTarget.style.filter = "none"}>
+                          Extend
+                        </button>
+                      </div>
                     </div>
-                    <Badge tone={daysLeft <= 7 ? "warning" : "neutral"} className="tnum">{daysLeft}d left</Badge>
-                  </button>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </Card>
         </div>
       </div>
+      {extendingNumber && <ExtendModal number={extendingNumber} open={!!extendingNumber} onClose={() => setExtendingNumber(null)} onConfirm={(plan) => doExtend(extendingNumber, plan)} plans={extensionPlans} isLoading={extensionPlansLoading} isSubmitting={extendMutation.isPending} />}
+      <Toast toast={toast} />
     </div>
   );
 };
@@ -295,7 +375,7 @@ const RENT_OPTS = [{ d: 7, label: "1 week" }, { d: 14, label: "2 weeks" }, { d: 
 
 const modalInput = { width: "100%", height: 44, padding: "0 14px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text)", fontSize: 14, outline: "none" };
 
-function ExtendModal({ number, open, onClose, onConfirm, plans = [], isLoading = false }) {
+function ExtendModal({ number, open, onClose, onConfirm, plans = [], isLoading = false, isSubmitting = false }) {
   const [selectedPlan, setSelectedPlan] = React.useState(null);
 
   React.useEffect(() => {
@@ -386,8 +466,17 @@ function ExtendModal({ number, open, onClose, onConfirm, plans = [], isLoading =
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>Total</span><span className="mono tnum" style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em" }}>${cost.toFixed(2)}</span>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
-            <Button full variant="subtle" onClick={onClose}>Cancel</Button>
-            <Button full icon="refresh" onClick={() => plan && onConfirm(plan.rent_time_id)} disabled={!plan}>Pay ${cost.toFixed(2)}</Button>
+            <Button full variant="subtle" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+            <Button full icon={isSubmitting ? undefined : "refresh"} onClick={() => plan && onConfirm(plan.rent_time_id)} disabled={!plan || isSubmitting}>
+              {isSubmitting ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                  Processing...
+                </span>
+              ) : (
+                `Pay $${cost.toFixed(2)}`
+              )}
+            </Button>
           </div>
         </>
       )}
@@ -474,10 +563,19 @@ function RestoreModal({ number, open, onClose, onConfirm, price, isLoading = fal
       )}
 
       <div style={{ display: "flex", gap: 10 }}>
-        <Button full variant="subtle" onClick={onClose}>{blocked ? "Close" : "Cancel"}</Button>
+        <Button full variant="subtle" onClick={onClose} disabled={isSubmitting}>{blocked ? "Close" : "Cancel"}</Button>
         {!blocked && (
-          <Button full icon="refresh" onClick={onConfirm} disabled={isLoading || !price || isSubmitting || cantAfford}>
-            {isSubmitting ? "Reactivating..." : price ? `Pay $${total.toFixed(2)} & reactivate` : "Reactivate"}
+          <Button full icon={isSubmitting ? undefined : "refresh"} onClick={onConfirm} disabled={isLoading || !price || isSubmitting || cantAfford}>
+            {isSubmitting ? (
+              <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                Reactivating...
+              </span>
+            ) : price ? (
+              `Pay $${total.toFixed(2)} & reactivate`
+            ) : (
+              "Reactivate"
+            )}
           </Button>
         )}
       </div>
@@ -485,43 +583,61 @@ function RestoreModal({ number, open, onClose, onConfirm, price, isLoading = fal
   );
 }
 
-function TransferModal({ number, open, onClose, onConfirm }) {
+function TransferModal({ number, open, onClose, onConfirm, isSubmitting = false }) {
   const [to, setTo] = React.useState("");
   React.useEffect(() => { if (open) setTo(""); }, [open]);
   if (!open) return null;
   return (
     <Modal open={open} onClose={onClose} title="Transfer number" subtitle={number.number}>
       <label style={{ fontSize: 12.5, color: "var(--text-muted)", display: "block", marginBottom: 7, fontWeight: 500 }}>Recipient ZEDSMS ID or email</label>
-      <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="ZED-0000-0000 or email" style={modalInput} autoFocus />
+      <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="ZED-0000-0000 or email" style={modalInput} disabled={isSubmitting} autoFocus />
       <div style={{ display: "flex", gap: 10, padding: "11px 13px", borderRadius: 11, background: "var(--warning-soft)", margin: "16px 0 18px" }}>
         <span style={{ color: "var(--warning)", flexShrink: 0, marginTop: 1 }}><Icon name="info" size={16} /></span>
         <span style={{ fontSize: 12.5, color: "var(--warning)", lineHeight: 1.5 }}>The number and its remaining {number.days} days move to the recipient. You'll lose access immediately. This can't be undone.</span>
       </div>
       <div style={{ display: "flex", gap: 10 }}>
-        <Button full variant="subtle" onClick={onClose}>Cancel</Button>
-        <Button full icon="transfer" onClick={() => to.trim() && onConfirm(to.trim())}>Transfer</Button>
+        <Button full variant="subtle" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+        <Button full icon={isSubmitting ? undefined : "transfer"} onClick={() => to.trim() && onConfirm(to.trim())} disabled={!to.trim() || isSubmitting}>
+          {isSubmitting ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Transferring...
+            </span>
+          ) : (
+            "Transfer"
+          )}
+        </Button>
       </div>
     </Modal>
   );
 }
 
-function RenameModal({ number, open, onClose, onConfirm }) {
+function RenameModal({ number, open, onClose, onConfirm, isSubmitting = false }) {
   const [label, setLabel] = React.useState(number.label || "");
   React.useEffect(() => { if (open) setLabel(number.label || ""); }, [open]);
   if (!open) return null;
   return (
     <Modal open={open} onClose={onClose} title="Rename number" subtitle="Give this number a label to find it faster">
       <label style={{ fontSize: 12.5, color: "var(--text-muted)", display: "block", marginBottom: 7, fontWeight: 500 }}>Label</label>
-      <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Marketing WhatsApp" maxLength={28} style={modalInput} autoFocus />
+      <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Marketing WhatsApp" maxLength={28} style={modalInput} disabled={isSubmitting} autoFocus />
       <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-        <Button full variant="subtle" onClick={onClose}>Cancel</Button>
-        <Button full icon="check" onClick={() => onConfirm(label.trim())}>Save label</Button>
+        <Button full variant="subtle" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+        <Button full icon={isSubmitting ? undefined : "check"} onClick={() => onConfirm(label.trim())} disabled={isSubmitting}>
+          {isSubmitting ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Saving...
+            </span>
+          ) : (
+            "Save label"
+          )}
+        </Button>
       </div>
     </Modal>
   );
 }
 
-function ReleaseModal({ number, open, onClose, onConfirm }) {
+function ReleaseModal({ number, open, onClose, onConfirm, isSubmitting = false }) {
   if (!open) return null;
   return (
     <Modal open={open} onClose={onClose} title="Release this number?" subtitle={number.number}>
@@ -530,34 +646,52 @@ function ReleaseModal({ number, open, onClose, onConfirm }) {
         <span style={{ fontSize: 12.5, color: "var(--danger)", lineHeight: 1.5 }}>Releasing removes the number from your account{number.status === "active" ? ` and forfeits its remaining ${number.days} days` : ""}. Incoming messages will stop. This can't be undone.</span>
       </div>
       <div style={{ display: "flex", gap: 10 }}>
-        <Button full variant="subtle" onClick={onClose}>Keep number</Button>
-        <Button full variant="danger" icon="trash" onClick={onConfirm}>Release number</Button>
+        <Button full variant="subtle" onClick={onClose} disabled={isSubmitting}>Keep number</Button>
+        <Button full variant="danger" icon={isSubmitting ? undefined : "trash"} onClick={onConfirm} disabled={isSubmitting}>
+          {isSubmitting ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Releasing...
+            </span>
+          ) : (
+            "Release number"
+          )}
+        </Button>
       </div>
     </Modal>
   );
 }
 
-function ComposeModal({ number, open, onClose, onSend }) {
+function ComposeModal({ number, open, onClose, onSend, isSubmitting = false }) {
   const [to, setTo] = React.useState("");
   const [body, setBody] = React.useState("");
   React.useEffect(() => { if (open) { setTo(""); setBody(""); } }, [open]);
   if (!open) return null;
   const segs = Math.max(1, Math.ceil(body.length / 160));
   const ready = to.trim().length >= 6 && body.trim().length > 0;
-  const taStyle = { width: "100%", minHeight: 96, padding: "11px 14px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text)", fontSize: 14, lineHeight: 1.5, outline: "none", resize: "vertical", fontFamily: "inherit" };
+  const taStyle = { width: "100%", minHeight: 96, padding: "11px 14px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text)", fontSize: 14, lineHeight: 1.5, outline: "none", resize: "vertical", fontFamily: "inherit", disabled: isSubmitting };
   return (
     <Modal open={open} onClose={onClose} title="Send SMS" subtitle={`From ${number.number}`}>
       <label style={{ fontSize: 12.5, color: "var(--text-muted)", display: "block", marginBottom: 7, fontWeight: 500 }}>To</label>
-      <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="+1 415 555 0123" inputMode="tel" className="mono" style={modalInput} autoFocus />
+      <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="+1 415 555 0123" inputMode="tel" className="mono" style={modalInput} disabled={isSubmitting} autoFocus />
       <label style={{ fontSize: 12.5, color: "var(--text-muted)", display: "block", margin: "14px 0 7px", fontWeight: 500 }}>Message</label>
-      <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your message…" style={taStyle} />
+      <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your message…" disabled={isSubmitting} style={taStyle} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 7, fontSize: 11.5, color: "var(--text-faint)" }}>
         <span className="tnum">{body.length} characters</span>
         <span className="tnum">{segs} SMS · ${(0.02 * segs).toFixed(2)}</span>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-        <Button full variant="subtle" onClick={onClose}>Cancel</Button>
-        <Button full icon="send" onClick={() => ready && onSend({ to: to.trim(), body: body.trim(), segs })}>Send message</Button>
+        <Button full variant="subtle" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+        <Button full icon={isSubmitting ? undefined : "send"} onClick={() => ready && onSend({ to: to.trim(), body: body.trim(), segs })} disabled={!ready || isSubmitting}>
+          {isSubmitting ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              Sending...
+            </span>
+          ) : (
+            "Send message"
+          )}
+        </Button>
       </div>
     </Modal>
   );
@@ -568,6 +702,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   const [typeFilter, setTypeFilter] = React.useState("all"); // 'all' | 'Private' | 'Shared'
   const { data: apiNumbers = [] } = useNumbers();
   const { data: user } = useUser();
+  const { data: balanceData } = useBalance();
   const [selected, setSelected] = React.useState(initialNumberId);
   const [query, setQuery] = React.useState("");
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -1007,8 +1142,14 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                       <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 60 }} />
                       <div style={{ position: "absolute", top: 44, right: 0, width: 252, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 13, boxShadow: "var(--shadow-pop)", zIndex: 70, padding: 6, animation: "popIn 0.15s ease both" }}>
                         <MenuRow icon="user" label="Rename / add label" sub={current.label || "No label set"} onClick={() => { setMenuOpen(false); setModal("rename"); }} />
-                        <MenuRow icon="refresh" label="Auto-renew" sub={current.autoRenew ? "On — renews before expiry" : "Off"} onClick={toggleAuto}
-                          right={<span style={{ width: 34, height: 20, borderRadius: 99, background: current.autoRenew ? "var(--accent)" : "var(--surface-3)", padding: 2.5, flexShrink: 0 }}><span style={{ display: "block", width: 15, height: 15, borderRadius: 99, background: "#fff", transform: current.autoRenew ? "translateX(14px)" : "none", transition: "transform 0.18s" }} /></span>} />
+                        <MenuRow icon="refresh" label="Auto-renew" sub={autoRenewMutation.isPending ? "Updating..." : (current.autoRenew ? "On — renews before expiry" : "Off")} onClick={toggleAuto} disabled={autoRenewMutation.isPending}
+                          right={autoRenewMutation.isPending ? (
+                            <span style={{ width: 34, height: 20, borderRadius: 99, background: "var(--surface-3)", padding: 2.5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                            </span>
+                          ) : (
+                            <span style={{ width: 34, height: 20, borderRadius: 99, background: current.autoRenew ? "var(--accent)" : "var(--surface-3)", padding: 2.5, flexShrink: 0, transition: "background 0.18s" }}><span style={{ display: "block", width: 15, height: 15, borderRadius: 99, background: "#fff", transform: current.autoRenew ? "translateX(14px)" : "none", transition: "transform 0.18s" }} /></span>
+                          )} />
                         <MenuRow icon="transfer" label="Transfer number"
                           sub={isLapsed(current.status) ? "Expired numbers can't be transferred" : "Move to another user"}
                           disabled={isLapsed(current.status)}
@@ -1138,12 +1279,12 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
       </div>
     </div>
 
-    {current && <ExtendModal number={current} open={modal === "renew"} onClose={() => setModal(null)} onConfirm={doExtend} plans={extensionPlans} isLoading={extensionPlansLoading} />}
+    {current && <ExtendModal number={current} open={modal === "renew"} onClose={() => setModal(null)} onConfirm={doExtend} plans={extensionPlans} isLoading={extensionPlansLoading} isSubmitting={extendMutation.isPending} />}
     {current && <RestoreModal number={current} open={modal === "restore"} onClose={() => setModal(null)} onConfirm={doRestore} price={restorePrice} isLoading={restorePriceLoading} error={restorePriceError} balance={balanceData?.amount || 0} isSubmitting={restoreMutation.isPending} />}
-    {current && <TransferModal number={current} open={modal === "transfer"} onClose={() => setModal(null)} onConfirm={doTransfer} />}
-    {current && <RenameModal number={current} open={modal === "rename"} onClose={() => setModal(null)} onConfirm={doRename} />}
-    {current && <ReleaseModal number={current} open={modal === "release"} onClose={() => setModal(null)} onConfirm={doRelease} />}
-    {current && <ComposeModal number={current} open={modal === "compose"} onClose={() => setModal(null)} onSend={doSend} />}
+    {current && <TransferModal number={current} open={modal === "transfer"} onClose={() => setModal(null)} onConfirm={doTransfer} isSubmitting={transferMutation.isPending} />}
+    {current && <RenameModal number={current} open={modal === "rename"} onClose={() => setModal(null)} onConfirm={doRename} isSubmitting={renameMutation.isPending} />}
+    {current && <ReleaseModal number={current} open={modal === "release"} onClose={() => setModal(null)} onConfirm={doRelease} isSubmitting={releaseMutation.isPending} />}
+    {current && <ComposeModal number={current} open={modal === "compose"} onClose={() => setModal(null)} onSend={doSend} isSubmitting={sendSmsMutation.isPending} />}
     <Toast toast={toast} />
     </>
   );
