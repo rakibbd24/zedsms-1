@@ -20,7 +20,7 @@ function SignInPage() {
   const location = useLocation();
   // set when the 2FA step sends the user back (challenge expired or used up)
   const notice = (location.state as { notice?: string } | null)?.notice;
-  const { login, isLoginLoading, loginError } = useAuth();
+  const { login, isLoginLoading } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -216,7 +216,7 @@ function SignInPage() {
 // ============ SIGN UP PAGE ============
 function SignUpPage() {
   const navigate = useNavigate();
-  const { signup, isSignupLoading, signupError } = useAuth();
+  const { signup, isSignupLoading } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");

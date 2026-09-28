@@ -9,13 +9,29 @@ import imgGift from "../assets/pricing/0c16a.svg";
 import imgCall from "../assets/pricing/06172.svg";
 import imgRefresh from "../assets/pricing/4f77e.svg";
 import imgFlash from "../assets/pricing/8dd23.svg";
+import { usePrivatePricing, type PrivateCountryPricing } from "../api/publicPricing";
 
-const plans = [
-  { country: "United Kingdom", flag: imgFlagUk, price: "$2.50", annual: "Annual: $15.00 (save 50% vs monthly)", popular: true },
-  { country: "United States", flag: imgFlagUs, price: "$3.99", annual: "Annual: $23.88 (save 50% vs monthly)" },
-  { country: "Canada", flag: imgFlagCa, price: "$3.00", annual: "Annual: $20.94 (save 42% vs monthly)" },
-  { country: "Australia", flag: imgFlagAu, price: "$2.00", annual: "Annual: $19.50 (save 19% vs monthly)" },
+// The four featured countries, in the design's order. Prices come from the API.
+const featured = [
+  { iso: "GB", country: "United Kingdom", flag: imgFlagUk, popular: true },
+  { iso: "US", country: "United States", flag: imgFlagUs },
+  { iso: "CA", country: "Canada", flag: imgFlagCa },
+  { iso: "AU", country: "Australia", flag: imgFlagAu },
 ];
+
+function planCopy(pricing: PrivateCountryPricing | undefined) {
+  const monthly = pricing?.plans.find((p) => p.term === "MONTHLY");
+  const annual = pricing?.plans.find((p) => p.term === "ANNUALLY");
+  return {
+    price: monthly ? `$${monthly.monthly_fee.toFixed(2)}` : "$—",
+    // Some countries (e.g. Australia) only sell monthly — then there's no annual line.
+    annual: annual
+      ? `Annual: $${annual.total.toFixed(2)}${annual.savings_percent > 0 ? ` (save ${annual.savings_percent}% vs monthly)` : ""}`
+      : pricing
+        ? "Billed monthly"
+        : "Annual: —",
+  };
+}
 
 const sharedDetails = [
   { icon: imgGift, text: "Setup Fee: Free" },
@@ -25,6 +41,14 @@ const sharedDetails = [
 ];
 
 export default function Pricing() {
+  const { data, isSuccess } = usePrivatePricing();
+
+  // Once loaded, drop any featured country that no longer has plans.
+  const plans = featured
+    .map((f) => ({ ...f, pricing: data?.countries.find((c) => c.iso === f.iso) }))
+    .filter((p) => !isSuccess || p.pricing?.plans.length)
+    .map((p) => ({ ...p, ...planCopy(p.pricing) }));
+
   return (
     <section className="relative w-full bg-[#f9f9fa] px-6 sm:px-8 lg:px-10 xl:px-12 min-[1440px]:px-[75px] py-12 lg:py-[60px]">
       <div className="mx-auto max-w-[1290px] flex flex-col items-center gap-10 lg:gap-[60px]">
