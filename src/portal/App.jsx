@@ -10,6 +10,9 @@ import { BuyScreen, TopUpScreen, TransferScreen, TransactionsScreen, SettingsScr
 import { Icon } from "./components/Icon";
 import { LogoMark } from "./components/LogoMark";
 import { logout as apiLogout } from "./api/auth";
+import { useAuthContext } from "./context/AuthContext";
+import { useRealtime } from "./hooks/useRealtime";
+import { Toast } from "./components/ui/Toast";
 
 // ============ RESPONSIVE + APP STYLES ============
 const appCss = `
@@ -159,6 +162,21 @@ function AppContent({ onLogoutRedirect }) {
   const scrollRef = React.useRef(null);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
+  // Live updates: new SMS, numbers and balance refresh as soon as the backend broadcasts
+  const { user } = useAuthContext();
+  const [liveToast, setLiveToast] = React.useState(null);
+  const liveToastTimer = React.useRef(null);
+  useRealtime(user?.id, (event) => {
+    const msg = event.sms_content !== undefined
+      ? `New SMS${event.sms_from ? ` from ${event.sms_from}` : ""}`
+      : event.title;
+    if (!msg) return;
+    clearTimeout(liveToastTimer.current);
+    setLiveToast({ msg, tone: /fail/i.test(msg) ? "danger" : "accent" });
+    liveToastTimer.current = setTimeout(() => setLiveToast(null), 4000);
+  });
+  React.useEffect(() => () => clearTimeout(liveToastTimer.current), []);
+
   // Initialize variables on mount
   React.useEffect(() => {
     initializeCSSVariables(theme, t);
@@ -221,6 +239,7 @@ function AppContent({ onLogoutRedirect }) {
   return (
     <>
       <style>{appCss}</style>
+      <Toast toast={liveToast} />
       <div className="layout">
         <Sidebar route={route} setRoute={setRoute} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={handleLogout} />
         <div className="content-wrap">

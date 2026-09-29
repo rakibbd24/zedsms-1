@@ -17,26 +17,41 @@ export async function getRecentMessages() {
       messages = response;
     }
 
-    // Normalize messages for display and limit to 10 most recent
-    return messages.slice(0, 10).map(m => ({
-      id: m.id,
-      from: m.sms_from || m.to_number || "Unknown",
-      body: m.sms_content || m.message_body || m.body || "",
-      time: m.date_time ? formatMessageTime(m.date_time) : formatMessageTime(m.created_at || m.updated_at),
-      code: m.code || "",
-      unread: m.status === 0, // status 0 might indicate unread
-      color: getServiceColor(m.com_port),
-      letter: getServiceLetter(m.com_port),
-      virtualNumberId: m.virtual_number_id,
-      direction: m.direction || "incoming",
-      toNumber: m.to_number,
-      fromNumber: m.sms_from,
-      timestamp: m.date_time || m.created_at
-    }));
+    // Normalize messages for display and limit to the most recent
+    return messages.slice(0, RECENT_LIMIT).map(normalizeRecentMessage);
   } catch (error) {
     console.error("Error fetching recent messages:", error);
     return [];
   }
+}
+
+export const RECENT_LIMIT = 10;
+
+// One SMS row → the recent-messages shape. Shared with the realtime feed so a
+// live SMS looks exactly like a fetched one.
+export function normalizeRecentMessage(m) {
+  return {
+    id: m.id,
+    from: m.sms_from || m.to_number || "Unknown",
+    body: m.sms_content || m.message_body || m.body || "",
+    // created_at is real UTC; date_time is labelled "+04" but for provider SMS it was
+    // stamped in the server's UTC clock, so it reads 4h old — use it only as a fallback
+    time: formatMessageTime(m.created_at || m.date_time || m.updated_at),
+    code: m.code || "",
+    unread: m.status === 0, // status 0 might indicate unread
+    color: getServiceColor(m.com_port),
+    letter: getServiceLetter(m.com_port),
+    virtualNumberId: m.virtual_number_id,
+    // the number this SMS arrived on, as the My Numbers screen selects it:
+    // private numbers are virtual_numbers rows, shared ones mobile_infos rows
+    numberUid: m.virtual_number_id ? `private:${m.virtual_number_id}`
+      : m.mobile_info_id ? `shared:${m.mobile_info_id}`
+      : null,
+    direction: m.direction || "incoming",
+    toNumber: m.to_number,
+    fromNumber: m.sms_from,
+    timestamp: m.created_at || m.date_time
+  };
 }
 
 // Helper: Format message time to relative format

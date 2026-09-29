@@ -172,6 +172,11 @@ const BULK_MIN = 2;
 const BULK_MAX = 100;
 const BULK_PRESETS = [10, 25, 50, 100];
 
+const newRequestId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+    (c ^ (Math.random() * 16) >> (c / 4)).toString(16));
+
 const BulkSummaryRow = ({ label, children }) => (
   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13 }}>
     <span style={{ color: "var(--text-muted)" }}>{label}</span>
@@ -183,6 +188,9 @@ const BulkOrderModal = ({ onClose, country, plans, initialPlan, balance, balance
   const [qty, setQty] = React.useState("10");
   const [planId, setPlanId] = React.useState(initialPlan?.id ?? plans[0]?.id ?? null);
   const bulk = usePurchaseBulkNumbers();
+  // One id per order attempt: if the same order is sent twice (double click,
+  // network retry) the backend charges it only once.
+  const requestId = React.useRef(newRequestId());
 
   const plan = plans.find((p) => p.id === planId) || null;
   const n = Number(qty);
@@ -196,7 +204,7 @@ const BulkOrderModal = ({ onClose, country, plans, initialPlan, balance, balance
 
   const submit = () => {
     if (blocker || bulk.isPending) return;
-    bulk.mutate({ rent_time_id: plan.id, quantity: n }, { onSuccess: (data) => onSent(data) });
+    bulk.mutate({ rent_time_id: plan.id, quantity: n, request_id: requestId.current }, { onSuccess: (data) => onSent(data) });
   };
 
   return (
@@ -628,7 +636,7 @@ const BuyScreen = ({ setRoute, openNumber }) => {
       <BulkOrderModal country={country} plans={plans} initialPlan={plan}
         balance={balance} balanceKnown={balanceKnown}
         onClose={() => setBulkOpen(false)}
-        onSent={(res) => { setBulkOpen(false); showToast(`Buying ${res.quantity} numbers ($${Number(res.total_charged).toFixed(2)} charged) — they'll appear in your list shortly`); }} />
+        onSent={(res) => { setBulkOpen(false); showToast(`Order ${res.order_ref}: buying ${res.quantity} numbers ($${Number(res.total_charged).toFixed(2)} charged) — they'll appear in your list shortly`); }} />
     )}
     <Toast toast={toast} />
     </>
