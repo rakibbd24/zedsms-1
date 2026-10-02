@@ -14,6 +14,7 @@ import { useNumbers, useExtendNumber, useRestoreNumber, useRestoreNumberPrice, u
 import { useMessages, useRecentMessages } from "../hooks/useMessages";
 import { useUser } from "../hooks/useUser";
 import { useBalance } from "../hooks/useBalance";
+import { DashboardAlerts } from "../components/DashboardAlerts";
 
 // ============ HOME / OVERVIEW ============
 // Format expiry date from timestamp
@@ -252,6 +253,9 @@ const HomeScreen = ({ setRoute, openNumber }) => {
 
   return (
     <div className="view-enter" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Announcements & User Alerts */}
+      <DashboardAlerts />
+
       {/* greeting */}
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
