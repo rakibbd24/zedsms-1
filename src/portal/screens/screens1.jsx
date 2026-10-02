@@ -253,7 +253,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
 
   return (
     <div className="view-enter" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {/* Announcements & User Alerts */}
+      {/* Announcements & User Alerts - Show at top during loading */}
       <DashboardAlerts />
 
       {/* greeting */}
@@ -350,6 +350,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
           </Card>
         </div>
       </div>
+
       {extendingNumber && <ExtendModal number={extendingNumber} open={!!extendingNumber} onClose={() => setExtendingNumber(null)} onConfirm={(plan) => doExtend(extendingNumber, plan)} plans={extensionPlans} isLoading={extensionPlansLoading} isSubmitting={extendMutation.isPending} />}
       <Toast toast={toast} />
     </div>

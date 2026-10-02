@@ -13,7 +13,16 @@ export const AnnouncementBanner = ({ announcement, onDismiss }) => {
         borderRadius: 'var(--r-card)',
         background: 'var(--accent-soft)',
         border: `1px solid var(--accent-border)`,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--accent)';
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--accent-border)';
+        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
       }}
     >
       <div

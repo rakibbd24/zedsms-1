@@ -1,19 +1,35 @@
 import React from 'react';
 import { Icon } from './Icon';
 
-const getAlertDotColor = (type) => {
-  const colors = {
-    warning: '#F59E0B',
-    info: 'var(--accent)',
-    success: 'var(--success)',
-    error: 'var(--danger)',
+const getAlertStyles = (type) => {
+  const styles = {
+    warning: {
+      dot: '#F59E0B',
+      bg: 'color-mix(in srgb, #F59E0B 6%, var(--surface))',
+      border: 'color-mix(in srgb, #F59E0B 20%, var(--border))',
+    },
+    info: {
+      dot: 'var(--accent)',
+      bg: 'color-mix(in srgb, var(--accent) 6%, var(--surface))',
+      border: 'color-mix(in srgb, var(--accent) 20%, var(--border))',
+    },
+    success: {
+      dot: 'var(--success)',
+      bg: 'color-mix(in srgb, var(--success) 6%, var(--surface))',
+      border: 'color-mix(in srgb, var(--success) 20%, var(--border))',
+    },
+    error: {
+      dot: 'var(--danger)',
+      bg: 'color-mix(in srgb, var(--danger) 6%, var(--surface))',
+      border: 'color-mix(in srgb, var(--danger) 20%, var(--border))',
+    },
   };
-  return colors[type] || 'var(--accent)';
+  return styles[type] || styles.info;
 };
 
-export const UserAlertItem = ({ alert, onDismiss, onRead }) => {
-  const isUnread = !alert.is_read;
-  const dotColor = getAlertDotColor(alert.type);
+export const UserAlertItem = ({ alert, onDismiss, onRead, itemType = 'alert' }) => {
+  const isUnread = !alert.is_read && itemType === 'alert';
+  const alertStyles = getAlertStyles(alert.type);
 
   const handleClick = () => {
     if (isUnread) {
@@ -30,10 +46,19 @@ export const UserAlertItem = ({ alert, onDismiss, onRead }) => {
         gap: '14px',
         padding: '16px',
         borderRadius: 'var(--r-card)',
-        background: isUnread ? 'var(--surface-2)' : 'var(--surface)',
-        border: `1px solid var(--border)`,
+        background: isUnread ? alertStyles.bg : 'var(--surface)',
+        border: `1px solid ${isUnread ? alertStyles.border : 'var(--border)'}`,
         transition: 'all 0.2s',
         cursor: 'pointer',
+        boxShadow: isUnread ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = alertStyles.border;
+        if (isUnread) e.currentTarget.style.background = 'color-mix(in srgb, ' + alertStyles.bg + ' 1.2, var(--surface))';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = isUnread ? alertStyles.border : 'var(--border)';
+        e.currentTarget.style.background = isUnread ? alertStyles.bg : 'var(--surface)';
       }}
     >
       {/* Left Content */}
@@ -154,8 +179,9 @@ export const UserAlertItem = ({ alert, onDismiss, onRead }) => {
             height: '10px',
             minWidth: '10px',
             borderRadius: '50%',
-            background: dotColor,
+            background: alertStyles.dot,
             marginTop: '4px',
+            boxShadow: `0 0 8px ${alertStyles.dot}40`,
           }}
         />
       </div>

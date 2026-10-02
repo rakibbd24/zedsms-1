@@ -3,8 +3,8 @@ import { api } from './client';
 const alertService = {
   async getAnnouncements() {
     try {
-      const data = await api.get('/user/announcements');
-      return { data: data || [] };
+      const response = await api.get('/user/announcements');
+      return { data: response?.data || [] };
     } catch (error) {
       console.error('Error fetching announcements:', error);
       return { data: [] };
@@ -17,8 +17,8 @@ const alertService = {
 
   async getUserAlerts() {
     try {
-      const data = await api.get('/user/alerts');
-      return { data: data || [] };
+      const response = await api.get('/user/alerts');
+      return { data: response?.data || [] };
     } catch (error) {
       console.error('Error fetching user alerts:', error);
       return { data: [] };
@@ -39,8 +39,8 @@ const alertService = {
 
   async getUnreadCount() {
     try {
-      const data = await api.get('/user/notifications/count');
-      return data?.unread_alerts || 0;
+      const response = await api.get('/user/notifications/count');
+      return response?.data?.unread_alerts || 0;
     } catch (error) {
       console.error('Error fetching unread count:', error);
       return 0;
