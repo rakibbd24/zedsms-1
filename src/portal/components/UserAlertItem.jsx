@@ -1,43 +1,19 @@
 import React from 'react';
 import { Icon } from './Icon';
 
-const getAlertConfig = (type) => {
-  const configs = {
-    warning: {
-      bg: 'bg-[#FEF3C7] dark:bg-[#78350F]/30',
-      border: 'border-l-[#F59E0B]',
-      iconName: 'alert-triangle',
-      iconColor: 'text-[#F59E0B]',
-      titleColor: 'text-[#92400E] dark:text-[#FCD34D]'
-    },
-    info: {
-      bg: 'bg-[#DBEAFE] dark:bg-[#1E3A8A]/30',
-      border: 'border-l-[#3B82F6]',
-      iconName: 'info',
-      iconColor: 'text-[#3B82F6]',
-      titleColor: 'text-[#1E40AF] dark:text-[#93C5FD]'
-    },
-    success: {
-      bg: 'bg-[#D1FAE5] dark:bg-[#065F46]/30',
-      border: 'border-l-[#10B981]',
-      iconName: 'check-circle',
-      iconColor: 'text-[#10B981]',
-      titleColor: 'text-[#065F46] dark:text-[#6EE7B7]'
-    },
-    error: {
-      bg: 'bg-[#FEE2E2] dark:bg-[#7F1D1D]/30',
-      border: 'border-l-[#EF4444]',
-      iconName: 'alert-circle',
-      iconColor: 'text-[#EF4444]',
-      titleColor: 'text-[#991B1B] dark:text-[#FCA5A5]'
-    }
+const getAlertDotColor = (type) => {
+  const colors = {
+    warning: '#F59E0B',
+    info: 'var(--accent)',
+    success: 'var(--success)',
+    error: 'var(--danger)',
   };
-  return configs[type] || configs.info;
+  return colors[type] || 'var(--accent)';
 };
 
 export const UserAlertItem = ({ alert, onDismiss, onRead }) => {
-  const config = getAlertConfig(alert.type);
   const isUnread = !alert.is_read;
+  const dotColor = getAlertDotColor(alert.type);
 
   const handleClick = () => {
     if (isUnread) {
@@ -49,173 +25,139 @@ export const UserAlertItem = ({ alert, onDismiss, onRead }) => {
     <div
       onClick={handleClick}
       style={{
-        position: 'relative',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '14px',
         padding: '16px',
-        borderRadius: '15px',
-        borderLeft: `4px solid`,
+        borderRadius: 'var(--r-card)',
+        background: isUnread ? 'var(--surface-2)' : 'var(--surface)',
+        border: `1px solid var(--border)`,
         transition: 'all 0.2s',
         cursor: 'pointer',
       }}
-      className={`${config.bg} ${config.border} ${isUnread ? 'ring-2 ring-[#0057FF]/30 dark:ring-[#0057FF]/50' : ''}`}
     >
-      {/* Unread indicator */}
-      {isUnread && (
-        <div
+      {/* Left Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Title */}
+        <h4
           style={{
-            position: 'absolute',
-            top: '-6px',
-            right: '-6px',
-            width: '12px',
-            height: '12px',
-            background: '#0057FF',
-            borderRadius: '50%',
-            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            fontSize: '15px',
+            fontWeight: 600,
+            color: 'var(--text)',
+            margin: '0 0 6px 0',
           }}
-        />
-      )}
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: .5; }
-        }
-      `}</style>
-
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-        {/* Icon */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '20px',
-            height: '20px',
-            minWidth: '20px',
-            marginTop: '2px',
-          }}
-          className={config.iconColor}
         >
-          <Icon name={config.iconName} size={18} strokeWidth={2} />
-        </div>
+          {alert.title}
+        </h4>
 
-        {/* Content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
+        {/* Message */}
+        <p
+          style={{
+            fontSize: '13px',
+            lineHeight: '1.5',
+            color: 'var(--text-muted)',
+            margin: '0 0 8px 0',
+          }}
+        >
+          {alert.message}
+        </p>
+
+        {/* Action Button */}
+        {alert.action_text && alert.action_link && (
+          <a
+            href={alert.action_link}
+            onClick={(e) => e.stopPropagation()}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              gap: '8px',
-              marginBottom: '4px',
-            }}
-          >
-            <h4
-              style={{
-                fontSize: '14px',
-                fontWeight: 600,
-                lineHeight: '1.4',
-              }}
-              className={config.titleColor}
-            >
-              {alert.title}
-            </h4>
-
-            {/* Dismiss Button */}
-            {alert.is_dismissible && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDismiss(alert.id);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '24px',
-                  height: '24px',
-                  minWidth: '24px',
-                  padding: 0,
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  transition: 'all 0.2s',
-                  borderRadius: '50%',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <Icon name="x" size={16} strokeWidth={2} />
-              </button>
-            )}
-          </div>
-
-          <p
-            style={{
+              display: 'inline-block',
               fontSize: '13px',
-              lineHeight: '1.5',
-              color: 'var(--text-muted)',
-              marginBottom: alert.action_text ? '8px' : '8px',
+              fontWeight: 600,
+              color: 'var(--accent)',
+              textDecoration: 'none',
+              cursor: 'pointer',
+              marginBottom: '8px',
             }}
           >
-            {alert.message}
-          </p>
+            {alert.action_text}
+          </a>
+        )}
 
-          {/* Action Button */}
-          {alert.action_text && alert.action_link && (
-            <a
-              href={alert.action_link}
-              onClick={(e) => e.stopPropagation()}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#0057FF',
-                textDecoration: 'none',
-                cursor: 'pointer',
-                marginBottom: '8px',
-              }}
-              className="hover:underline"
-            >
-              {alert.action_text}
-              <Icon name="arrow-right" size={12} strokeWidth={2} />
-            </a>
-          )}
-
-          {/* Category & Time */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {alert.category && (
-              <span
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '10px',
-                  fontWeight: 500,
-                  backgroundColor: 'rgba(0,0,0,0.05)',
-                  borderRadius: '4px',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                {alert.category}
-              </span>
-            )}
+        {/* Category & Time */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {alert.category && (
             <span
               style={{
-                fontSize: '10px',
-                color: 'var(--text-faint)',
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'var(--text-muted)',
+                backgroundColor: 'var(--surface-3)',
+                padding: '3px 8px',
+                borderRadius: '3px',
               }}
             >
-              {alert.created_at_human || 'Just now'}
+              {alert.category}
             </span>
-          </div>
+          )}
+          <span
+            style={{
+              fontSize: '12px',
+              color: 'var(--text-faint)',
+            }}
+          >
+            {alert.created_at_human || 'Just now'}
+          </span>
         </div>
+      </div>
+
+      {/* Right Side - Dismiss & Dot */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          minWidth: '50px',
+        }}
+      >
+        {/* Dismiss Button */}
+        {alert.is_dismissible && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDismiss(alert.id);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '20px',
+              height: '20px',
+              minWidth: '20px',
+              padding: 0,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-faint)',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-faint)')}
+          >
+            <Icon name="x" size={16} strokeWidth={2} />
+          </button>
+        )}
+
+        {/* Status Dot */}
+        <div
+          style={{
+            width: '10px',
+            height: '10px',
+            minWidth: '10px',
+            borderRadius: '50%',
+            background: dotColor,
+            marginTop: '4px',
+          }}
+        />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { TweaksPanel, TweakSection, TweakColor, TweakRadio } from "./components/
 import { useTweaks } from "./hooks/useTweaks";
 import { HomeScreen, NumbersScreen } from "./screens/screens1";
 import { BuyScreen, TopUpScreen, TransferScreen, TransactionsScreen, SettingsScreen } from "./screens/screens2";
+import AlertsDesignPreview from "./screens/AlertsDesignPreview";
 import { Icon } from "./components/Icon";
 import { LogoMark } from "./components/LogoMark";
 import { logout as apiLogout } from "./api/auth";
@@ -272,6 +273,7 @@ function AppContent({ onLogoutRedirect }) {
               <Route path="/transfer" element={<TransferScreen />} />
               <Route path="/transactions" element={<TransactionsScreen />} />
               <Route path="/settings" element={<SettingsScreen theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout} />} />
+              <Route path="/alerts-preview" element={<AlertsDesignPreview />} />
               <Route path="/" element={<HomeScreen setRoute={setRoute} openNumber={goNumbers} />} />
             </Routes>
           </main>

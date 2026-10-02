@@ -1,92 +1,56 @@
 import React from 'react';
 import { Icon } from './Icon';
 
-const getAnnouncementConfig = (type) => {
-  const configs = {
-    warning: {
-      bg: 'bg-[#FEF3C7] dark:bg-[#78350F]/30',
-      border: 'border-[#F59E0B]',
-      iconName: 'alert-triangle',
-      iconColor: 'text-[#F59E0B]',
-      titleColor: 'text-[#92400E] dark:text-[#FCD34D]'
-    },
-    info: {
-      bg: 'bg-[#DBEAFE] dark:bg-[#1E3A8A]/30',
-      border: 'border-[#3B82F6]',
-      iconName: 'info',
-      iconColor: 'text-[#3B82F6]',
-      titleColor: 'text-[#1E40AF] dark:text-[#93C5FD]'
-    },
-    success: {
-      bg: 'bg-[#D1FAE5] dark:bg-[#065F46]/30',
-      border: 'border-[#10B981]',
-      iconName: 'check-circle',
-      iconColor: 'text-[#10B981]',
-      titleColor: 'text-[#065F46] dark:text-[#6EE7B7]'
-    },
-    error: {
-      bg: 'bg-[#FEE2E2] dark:bg-[#7F1D1D]/30',
-      border: 'border-[#EF4444]',
-      iconName: 'alert-circle',
-      iconColor: 'text-[#EF4444]',
-      titleColor: 'text-[#991B1B] dark:text-[#FCA5A5]'
-    }
-  };
-  return configs[type] || configs.info;
-};
-
 export const AnnouncementBanner = ({ announcement, onDismiss }) => {
-  const config = getAnnouncementConfig(announcement.type);
-
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'flex-start',
         gap: '12px',
-        padding: '16px',
-        marginBottom: '16px',
-        borderLeft: `4px solid var(--accent)`,
-        borderRadius: '12px',
-        background: 'var(--surface)',
-        border: `1px solid var(--border)`,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        padding: '14px 16px',
+        marginBottom: '12px',
+        borderRadius: 'var(--r-card)',
+        background: 'var(--accent-soft)',
+        border: `1px solid var(--accent-border)`,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}
-      className={config.bg}
     >
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '20px',
-          height: '20px',
-          minWidth: '20px',
-          marginTop: '2px',
+          width: '18px',
+          height: '18px',
+          minWidth: '18px',
+          marginTop: '3px',
+          color: 'var(--accent)',
         }}
-        className={config.iconColor}
       >
-        <Icon name={config.iconName} size={18} strokeWidth={2} />
+        <Icon name="bell" size={16} strokeWidth={2} />
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h3
-          style={{
-            fontSize: '14px',
-            fontWeight: 600,
-            marginBottom: '4px',
-          }}
-          className={config.titleColor}
-        >
-          {announcement.title}
-        </h3>
+        {announcement.title && (
+          <h4
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'var(--accent)',
+              margin: '0 0 4px 0',
+            }}
+          >
+            {announcement.title}
+          </h4>
+        )}
         {announcement.message && (
           <p
             style={{
-              fontSize: '14px',
+              fontSize: '13px',
               lineHeight: '1.4',
               color: 'var(--text-muted)',
-              marginBottom: announcement.action_text ? '8px' : 0,
+              margin: '0 0 8px 0',
             }}
           >
             {announcement.message}
@@ -101,16 +65,15 @@ export const AnnouncementBanner = ({ announcement, onDismiss }) => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 600,
               color: 'var(--accent)',
               textDecoration: 'none',
               cursor: 'pointer',
             }}
-            className="hover:underline"
           >
             {announcement.action_text}
-            <Icon name="arrow-right" size={14} strokeWidth={2} />
+            <Icon name="arrow-right" size={12} strokeWidth={2} />
           </a>
         )}
       </div>
@@ -122,20 +85,20 @@ export const AnnouncementBanner = ({ announcement, onDismiss }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '24px',
-            height: '24px',
-            minWidth: '24px',
+            width: '20px',
+            height: '20px',
+            minWidth: '20px',
             padding: 0,
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
-            color: 'var(--text-muted)',
+            color: 'var(--text-faint)',
             transition: 'color 0.2s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-faint)')}
         >
-          <Icon name="x" size={18} strokeWidth={2} />
+          <Icon name="x" size={16} strokeWidth={2} />
         </button>
       )}
     </div>
