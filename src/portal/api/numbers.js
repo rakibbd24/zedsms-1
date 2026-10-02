@@ -35,8 +35,11 @@ export async function getNumbers() {
     console.log("Fetching numbers...");
     const token = localStorage.getItem("zedsms-token");
 
-    // Use the web endpoint directly (it's at /web/user/my-numbers, not /api/web/user/my-numbers)
-    const response = await fetch(`https://control.zedsms.com/web/user/my-numbers?paginate=1`, {
+    // The web endpoint lives at the backend root (/web/user/my-numbers, not under /api) and
+    // returns { numbers, pagination }; /api/user/my-numbers is a raw paginator instead.
+    // Derive the root from the configured API URL so local and production both work.
+    const root = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/api\/?$/, "");
+    const response = await fetch(`${root}/web/user/my-numbers?paginate=1`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

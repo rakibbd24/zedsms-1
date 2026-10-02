@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSharedCountries, getSharedServices, getSharedNumbers, getSharedRentTimes,
-  getPrivateCountries, getPrivateAvailableNumbers, getPrivatePlans, purchaseNumber,
+  getPrivateCountries, getPrivateAvailableNumbers, getPrivatePlans, purchaseNumber, purchaseBulkNumbers,
 } from "../api/buy";
 
 const CATALOG = 5 * 60 * 1000;
@@ -58,6 +58,22 @@ export function usePurchaseNumber() {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["recent-activity"] });
       qc.invalidateQueries({ queryKey: ["buy", "shared-numbers"] });
+    },
+  });
+}
+
+// The order is charged up front, so refresh the balance now; the numbers arrive
+// over the next minute as background jobs buy them.
+export function usePurchaseBulkNumbers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: purchaseBulkNumbers,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["balance"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["numbers"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["recent-activity"] });
     },
   });
 }

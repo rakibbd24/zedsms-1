@@ -17,6 +17,13 @@ import { api } from "./client";
 //     GET  /cloud-numbers/available   (others)   ┘
 //     GET  /private-number-plans?country_id    → plans (id is the rent_time_id)
 //     POST /user/purchase-number { mobile_number_type_id: 2, rent_time_id, phone_number | number_sid }
+//
+//   Bulk (private only — Telnyx / Pivotel / CloudNumbering)
+//     POST /user/bulk-purchase-number { rent_time_id, quantity, request_id }   (quantity 2–100)
+//       request_id: a uuid per order attempt — a repeat of the same id isn't charged twice (409)
+//       → 202 { order_ref, status: "processing", quantity, unit_price, total_charged }
+//       The whole order is charged now; the numbers are bought in the background
+//       and appear in the numbers list over the next minute. Any that fail are refunded.
 
 const ASSET_BASE = "https://control.zedsms.com/";
 
@@ -199,5 +206,15 @@ export async function purchaseNumber(payload) {
     // 503 from the private flow means the picked number was taken / provider busy
     e.status = err?.status;
     throw e;
+  }
+}
+
+// ---------------- bulk ----------------
+
+export async function purchaseBulkNumbers(payload) {
+  try {
+    return unwrap(await api.post("/user/bulk-purchase-number", payload), "Bulk purchase failed");
+  } catch (err) {
+    throw new Error(reasonOf(err, "Bulk purchase failed"));
   }
 }

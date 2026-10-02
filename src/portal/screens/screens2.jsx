@@ -11,7 +11,7 @@ import { Modal } from "../components/ui/Modal";
 import { Toast } from "../components/ui/Toast";
 import { useUser } from "../hooks/useUser";
 import { useBalance } from "../hooks/useBalance";
-import { useSharedCountries, useSharedServices, useSharedNumbers, useSharedRentTimes, usePrivateCountries, usePrivateAvailableNumbers, usePrivatePlans, usePurchaseNumber } from "../hooks/useBuy";
+import { useSharedCountries, useSharedServices, useSharedNumbers, useSharedRentTimes, usePrivateCountries, usePrivateAvailableNumbers, usePrivatePlans, usePurchaseNumber, usePurchaseBulkNumbers } from "../hooks/useBuy";
 import { privateUpstreamOf, sharedPriceOf } from "../api/buy";
 import { usePaymentGateways, useStartTopUp } from "../hooks/useTopUp";
 import { amountError, feeFor, feeLabel } from "../api/topup";
@@ -163,6 +163,102 @@ const ServiceLogo = ({ service, size = 40 }) => (
     : <ServiceAvatar color="var(--accent)" letter={(service?.name || "?")[0].toUpperCase()} size={size} />
 );
 
+// ---- bulk order ----
+// Private numbers only (Telnyx / Pivotel / CloudNumbering). The whole order is
+// charged when it's placed; the backend then buys the numbers in the background,
+// so they show up in the numbers list over the next minute. Any number it can't
+// get is refunded automatically.
+const BULK_MIN = 2;
+const BULK_MAX = 100;
+const BULK_PRESETS = [10, 25, 50, 100];
+
+const newRequestId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+    (c ^ (Math.random() * 16) >> (c / 4)).toString(16));
+
+const BulkSummaryRow = ({ label, children }) => (
+  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13 }}>
+    <span style={{ color: "var(--text-muted)" }}>{label}</span>
+    <span style={{ fontWeight: 500, textAlign: "right" }}>{children}</span>
+  </div>
+);
+
+const BulkOrderModal = ({ onClose, country, plans, initialPlan, balance, balanceKnown, onSent }) => {
+  const [qty, setQty] = React.useState("10");
+  const [planId, setPlanId] = React.useState(initialPlan?.id ?? plans[0]?.id ?? null);
+  const bulk = usePurchaseBulkNumbers();
+  // One id per order attempt: if the same order is sent twice (double click,
+  // network retry) the backend charges it only once.
+  const requestId = React.useRef(newRequestId());
+
+  const plan = plans.find((p) => p.id === planId) || null;
+  const n = Number(qty);
+  const qtyValid = Number.isInteger(n) && n >= BULK_MIN && n <= BULK_MAX;
+  const total = plan && qtyValid ? Math.round(plan.price * n * 100) / 100 : null;
+  const blocker = !country ? "Choose a country first"
+    : !plan ? "Choose a plan"
+    : !qtyValid ? `Enter a quantity between ${BULK_MIN} and ${BULK_MAX}`
+    : balanceKnown && total > balance + 0.0001 ? "Insufficient balance"
+    : null;
+
+  const submit = () => {
+    if (blocker || bulk.isPending) return;
+    bulk.mutate({ rent_time_id: plan.id, quantity: n, request_id: requestId.current }, { onSuccess: (data) => onSent(data) });
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Bulk order" subtitle="Buy many private numbers on one plan in a single order." width={460}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 9, padding: "13px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: 16 }}>
+        <BulkSummaryRow label="Type">Private</BulkSummaryRow>
+        <BulkSummaryRow label="Country">{country?.name || "—"}</BulkSummaryRow>
+      </div>
+
+      <Field label="Plan">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {plans.map((p) => (
+            <button key={p.id} type="button" onClick={() => setPlanId(p.id)}
+              style={{ height: 32, padding: "0 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, ...pickCard(p.id === planId) }}>
+              {p.label} · <span className="tnum">${(p.price || 0).toFixed(2)}</span>
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="How many numbers?">
+        <input type="number" inputMode="numeric" min={BULK_MIN} max={BULK_MAX} step={1} autoFocus
+          value={qty} onChange={(e) => setQty(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+          className="tnum" style={settingsInput} />
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          {BULK_PRESETS.map((p) => (
+            <button key={p} type="button" onClick={() => setQty(String(p))} className="tnum"
+              style={{ height: 28, padding: "0 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, ...pickCard(n === p) }}>
+              {p}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      {total != null && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Total <span style={{ color: "var(--text-faint)" }}>({n} × ${plan.price.toFixed(2)})</span></span>
+          <span className="tnum" style={{ fontSize: 17, fontWeight: 600 }}>${total.toFixed(2)}</span>
+        </div>
+      )}
+
+      {bulk.error && <div style={{ marginBottom: 12 }}><BuyNotice tone="danger">{bulk.error.message}</BuyNotice></div>}
+
+      <Button full size="lg" icon="layers" onClick={submit} disabled={!!blocker || bulk.isPending}>
+        {bulk.isPending ? "Placing order…" : blocker || `Buy ${n} numbers · $${total.toFixed(2)}`}
+      </Button>
+      <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--text-faint)", textAlign: "center" }}>
+        You're charged now. Numbers appear in your list over the next minute — any we can't get are refunded.
+      </p>
+    </Modal>
+  );
+};
+
 const BuyScreen = ({ setRoute, openNumber }) => {
   const [type, setType] = React.useState("Private");
   const isPrivate = type === "Private";
@@ -177,6 +273,7 @@ const BuyScreen = ({ setRoute, openNumber }) => {
   const [usState, setUsState] = React.useState("");
   const [page, setPage] = React.useState(0);            // pivotel paging for "show different numbers"
   const [agreed, setAgreed] = React.useState(false);
+  const [bulkOpen, setBulkOpen] = React.useState(false);
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
   const showToast = (msg, tone = "success") => { clearTimeout(toastTimer.current); setToast({ msg, tone }); toastTimer.current = setTimeout(() => setToast(null), 3200); };
@@ -383,7 +480,8 @@ const BuyScreen = ({ setRoute, openNumber }) => {
             <Card style={{ padding: 18 }}>
               <StepTitle n={step.number} sub={isPrivate
                 ? (isUS ? "Pick a state to get its area codes, or leave it on any state." : "These numbers are available right now. The one you pick is yours.")
-                : `Free ${svc.name} numbers in ${country.name}. Digits are partly hidden until the number is yours.`}>
+                : `Free ${svc.name} numbers in ${country.name}. Digits are partly hidden until the number is yours.`}
+                right={isPrivate && <Button size="sm" variant="soft" icon="layers" onClick={() => setBulkOpen(true)}>Bulk order</Button>}>
                 Pick your number
               </StepTitle>
 
@@ -534,6 +632,12 @@ const BuyScreen = ({ setRoute, openNumber }) => {
       )}
     </div>
     {/* outside .view-enter: its transform would trap position:fixed */}
+    {bulkOpen && isPrivate && (
+      <BulkOrderModal country={country} plans={plans} initialPlan={plan}
+        balance={balance} balanceKnown={balanceKnown}
+        onClose={() => setBulkOpen(false)}
+        onSent={(res) => { setBulkOpen(false); showToast(`Order ${res.order_ref}: buying ${res.quantity} numbers ($${Number(res.total_charged).toFixed(2)} charged) — they'll appear in your list shortly`); }} />
+    )}
     <Toast toast={toast} />
     </>
   );

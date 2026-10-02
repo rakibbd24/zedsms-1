@@ -289,7 +289,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
             <button onClick={() => setRoute("numbers")} style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)", display: "flex", alignItems: "center", gap: 3 }}>View all <Icon name="chevR" size={14} /></button>
           </div>
           <div style={{ padding: "0 8px 10px" }}>
-            {messages.slice(0, 10).map((m) => <CodeRow key={m.id} m={m} onOpen={() => openNumber(m.numberId)} />)}
+            {messages.slice(0, 10).map((m) => <CodeRow key={m.id} m={m} onOpen={() => openNumber(m.numberUid)} />)}
           </div>
         </Card>
 
