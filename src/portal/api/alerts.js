@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || '/api';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/?$/, '/');
 
 const alertService = {
   // Get all active announcements for the current user
