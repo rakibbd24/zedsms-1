@@ -6,6 +6,8 @@ import Features from "./pages/Features";
 import About from "./pages/About";
 import Pricing from "./pages/Pricing";
 import Portal from "./pages/Portal";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import { SignInPage, SignUpPage } from "./pages/Auth";
 import { EmailVerificationPage } from "./pages/EmailVerification";
 import { OTPVerificationPage } from "./pages/OTPVerification";
@@ -50,6 +52,8 @@ export default function App() {
             <Route path="/features" element={<Features />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/about" element={<About />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/auth/signin" element={<SignInPage />} />
             <Route path="/auth/signup" element={<SignUpPage />} />
             <Route path="/auth/verify-email" element={<EmailVerificationPage />} />

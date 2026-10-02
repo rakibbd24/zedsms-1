@@ -15,9 +15,9 @@ const socials = [
 ];
 
 const linkGroups = [
-  { title: "COMPANY", links: ["Home", "About", "Blog", "Careers"] },
-  { title: "LEGAL", links: ["Terms & Conditions", "Privacy Policy"] },
-  { title: "SUPPORT", links: ["support@zedsms.com", "FAQ", "Contact"] },
+  { title: "COMPANY", links: [{ label: "Home", href: "/" }, { label: "About", href: "/about" }, { label: "Blog", href: "#" }, { label: "Careers", href: "#" }] },
+  { title: "LEGAL", links: [{ label: "Terms & Conditions", href: "/terms-of-service" }, { label: "Privacy Policy", href: "/privacy-policy" }] },
+  { title: "SUPPORT", links: [{ label: "support@zedsms.com", href: "mailto:support@zedsms.com" }, { label: "FAQ", href: "#" }, { label: "Contact", href: "#" }] },
 ];
 
 export default function Footer() {
@@ -69,12 +69,12 @@ export default function Footer() {
                 <h2 className="font-display font-medium text-lg leading-[26px] text-[#0f1013]">{g.title}</h2>
                 <ul className="flex flex-col gap-2.5">
                   {g.links.map((l) => (
-                    <li key={l}>
+                    <li key={l.label}>
                       <a
-                        href={l.includes("@") ? `mailto:${l}` : "#"}
+                        href={l.href}
                         className="font-sans text-base leading-6 text-[#494c52] hover:text-[#2155f5] transition-colors break-all sm:break-normal"
                       >
-                        {l}
+                        {l.label}
                       </a>
                     </li>
                   ))}
