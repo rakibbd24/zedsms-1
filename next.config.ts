@@ -22,6 +22,9 @@ const env = Object.fromEntries(
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // hide the "N" dev-tools button in `next dev` (it sat over the portal sidebar);
+  // build errors still show as an overlay. Never shipped in production builds anyway.
+  devIndicators: false,
   // self-contained server for the VPS (node .next/standalone/server.js behind Nginx)
   output: "standalone",
   // Vite keeps tsconfig.json / tsconfig.app.json until the cut-over
