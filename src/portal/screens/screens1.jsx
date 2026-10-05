@@ -232,6 +232,8 @@ const QuickBuy = () => {
   );
 };
 
+// the overview's "Expiring soon" window (also the "N expiring soon" count on the stats)
+const EXPIRING_WITHIN_DAYS = 14;
 // how many expiring numbers the overview lists before "+N more"
 const EXPIRING_SHOWN = 5;
 
@@ -290,7 +292,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
   }, [rawNumbers]);
 
   const active = numbers.filter((n) => n.status === "active");
-  const expiring = active.filter((n) => n.days <= 50);
+  const expiring = active.filter((n) => n.days <= EXPIRING_WITHIN_DAYS);
   const unreadCodes = messages.filter((m) => m.unread).length;
 
   const doExtend = (number, rentTimeId) => {
@@ -360,7 +362,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
             {expiring.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "18px 18px 24px", textAlign: "center" }}>
                 <span style={{ width: 36, height: 36, borderRadius: 11, background: "var(--success-soft)", color: "var(--success)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="check" size={18} strokeWidth={2.2} /></span>
-                <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Nothing expires in the next 50 days</span>
+                <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Nothing expires in the next {EXPIRING_WITHIN_DAYS} days</span>
               </div>
             ) : (
               <div style={{ padding: "0 18px 6px" }}>
