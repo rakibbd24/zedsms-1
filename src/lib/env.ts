@@ -2,19 +2,20 @@
 // build time and are all public (client ids, the API URL, the Reverb key) — never put a
 // secret here. Defaults are applied where each value is used, as before.
 //
-// Vite exposes VITE_* through import.meta.env; at the Next.js switch only this file changes
-// (to literal process.env.NEXT_PUBLIC_* reads) — see NEXT_MIGRATION.md, stage 6.
+// Each read must stay a literal `process.env.NEXT_PUBLIC_*` expression: Next.js inlines
+// exactly that text (next.config.ts `env`), and vite.config.ts `define` replaces the same
+// text in the Vite build. Both map the current VITE_* names in .env files until stage 6.
 export const env = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "",
-  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
-  appleServiceId: import.meta.env.VITE_APPLE_SERVICE_ID || "",
-  appleRedirectUri: import.meta.env.VITE_APPLE_REDIRECT_URI || "",
-  telegramBot: import.meta.env.VITE_TELEGRAM_BOT || "",
-  telegramOpenIdClientId: import.meta.env.VITE_TELEGRAM_OPENID_CLIENT_ID || "",
-  telegramOpenIdRedirectUri: import.meta.env.VITE_TELEGRAM_OPENID_REDIRECT_URI || "",
-  reverbAppKey: import.meta.env.VITE_REVERB_APP_KEY || "",
-  reverbHost: import.meta.env.VITE_REVERB_HOST || "",
-  reverbPort: import.meta.env.VITE_REVERB_PORT || "",
-  reverbScheme: import.meta.env.VITE_REVERB_SCHEME || "",
-  isDev: import.meta.env.DEV,
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "",
+  googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
+  appleServiceId: process.env.NEXT_PUBLIC_APPLE_SERVICE_ID || "",
+  appleRedirectUri: process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || "",
+  telegramBot: process.env.NEXT_PUBLIC_TELEGRAM_BOT || "",
+  telegramOpenIdClientId: process.env.NEXT_PUBLIC_TELEGRAM_OPENID_CLIENT_ID || "",
+  telegramOpenIdRedirectUri: process.env.NEXT_PUBLIC_TELEGRAM_OPENID_REDIRECT_URI || "",
+  reverbAppKey: process.env.NEXT_PUBLIC_REVERB_APP_KEY || "",
+  reverbHost: process.env.NEXT_PUBLIC_REVERB_HOST || "",
+  reverbPort: process.env.NEXT_PUBLIC_REVERB_PORT || "",
+  reverbScheme: process.env.NEXT_PUBLIC_REVERB_SCHEME || "",
+  isDev: process.env.NODE_ENV !== "production",
 };

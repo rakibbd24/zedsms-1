@@ -4,7 +4,7 @@
 existing portal — **approach A**: the portal is kept as-is (React Router) and mounted inside
 a client-only Next.js catch-all route.
 
-**Status:** Stage 1 done (code framework-neutral, still Vite) — next: Stage 2. Update the progress log at the bottom after every stage.
+**Status:** Stage 2 done (Next.js 16 builds alongside Vite; Vite still live) — next: Stage 3. Update the progress log at the bottom after every stage.
 
 ---
 
@@ -155,13 +155,19 @@ Each step is a pure refactor, verified on Vite before moving on.
 - **Exit:** build ✅ · screenshots **18/18 identical** to baseline ✅ · `scratch/flows.mjs` hand-off checks **7/7 pass** ✅ ·
   portal smoke test reaches the API through `env.ts` ✅.
 
-### Stage 2 — Next.js scaffold  *(both stacks build; nothing switched yet)*
-- [ ] Install `next`, `@tailwindcss/postcss`; add `next.config.ts` (`reactStrictMode`, `output: "standalone"`),
-      `postcss.config.mjs`, Next `tsconfig` settings (keep `allowJs` for the portal).
-- [ ] `src/app/layout.tsx`: global `index.css`, metadata from `index.html` (G10), favicon, theme colour.
-- [ ] `src/app/providers.tsx`: the same single `QueryClient` + `AuthProvider`.
-- [ ] Scripts: `next:dev` / `next:build` added next to the Vite ones (Vite stays the default).
-- **Exit:** `next build` succeeds with a placeholder page; Vite build still passes. **Commit.**
+### Stage 2 — Next.js scaffold  *(both stacks build; nothing switched yet)* ✅
+- [x] Installed `next@16.3.8` (Turbopack) and `@tailwindcss/postcss`; `next.config.ts` (`reactStrictMode`,
+      `output: "standalone"`, `turbopack.root`, own `tsconfig.next.json`), `postcss.config.mjs`.
+- [x] Coexistence: Vite ignores `postcss.config.mjs` (inline `css.postcss`); `tsconfig.next.json` excludes the
+      Vite-only `src/main.tsx` / `src/App.tsx`; Node types added to `tsconfig.app.json`.
+- [x] **Env (changed vs plan, simpler cut-over):** `src/lib/env.ts` now reads literal `process.env.NEXT_PUBLIC_*`;
+      `next.config.ts` `env` and `vite.config.ts` `define` both map them from the existing `VITE_*` names, so both
+      builds read the same `.env.local`. Stage 6 only renames the keys and drops the Vite `define`.
+- [x] `src/app/layout.tsx` (global `index.css`, `metadata` + `viewport` copied from `index.html`),
+      `src/app/providers.tsx` (one `QueryClient` + `AuthProvider`), placeholder `src/app/page.tsx`.
+- [x] Scripts `next:dev` (port 3000), `next:build`, `next:start` (port 4174) next to the Vite ones; `.next` ignored.
+- **Exit:** `next build` ✅ (`/` prerendered; head tags, Tailwind + fonts CSS and API URL verified on `next start`) ·
+  Vite build ✅ · Vite screenshots **18/18 identical** · hand-off checks **7/7** ✅.
 
 ### Stage 3 — Landing & auth pages on Next  *(G5, G7, G9, G11)*
 - [ ] Routes for `/`, `/features`, `/pricing`, `/about`, legal pages, all `/auth/*`, `/verification-success`, `not-found`.
@@ -256,5 +262,6 @@ Each step is a pure refactor, verified on Vite before moving on.
 | Date | Stage | Result | Commit |
 |---|---|---|---|
 | 2026-10-05 | Plan written | — | `78dbce8` (main) |
+| 2026-10-05 | Stage 2 — Next.js scaffold | Next 16.3.8 builds a placeholder; Vite unchanged (18/18 identical, 7/7 checks) | see branch |
 | 2026-10-05 | Stage 1 — framework-neutral | G1, G2, G3, G4, G6 done on Vite; 18/18 screenshots identical; 7/7 hand-off checks | see branch |
 | 2026-10-05 | Stage 0 — baseline | 18 landing/auth shots; re-capture 18/18 identical; portal excluded (manual checklist only) | — (no code changes; tooling in git-ignored `scratch/`) |
