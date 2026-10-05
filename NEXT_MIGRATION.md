@@ -4,7 +4,8 @@
 existing portal — **approach A**: the portal is kept as-is (React Router) and mounted inside
 a client-only Next.js catch-all route.
 
-**Status:** Stage 3 done (landing + auth pages served by Next.js, pixel-identical) — next: Stage 4.
+**Status:** Stage 4 done in code (portal + payment returns mounted under Next.js, portal code untouched) —
+waiting on your real-account test (§8 portal items) — next: Stage 5 (SEO).
 On this branch the Vite build no longer works for landing/auth pages (they use `next/link` / `next/navigation`) —
 use `npm run next:build` / `next:start`; `main` keeps the live Vite site until stage 6. Update the progress log at the bottom after every stage.
 
@@ -54,7 +55,7 @@ use `npm run next:build` / `next:start`; `main` keeps the live Vite site until s
 | `/auth/verify-otp` | `pages/OTPVerification.tsx` | auth |
 | `/auth/telegram/callback` | `pages/TelegramCallback.tsx` | auth |
 | `/verification-success` | `pages/VerificationSuccess.tsx` | auth |
-| `/stripe/success`, `/stripe/cancel`, `/crypto/*`, `/mixpay/*`, `/binance/*`, `/payeer/*`, `/perfectmoney/*`, `/perfect-money/*` (+ `/perfect-money/cancel/:trxId`) | `portal/screens/PaymentReturn.jsx` inside `ProtectedRoute` | payment gateway return URLs — **paths must not change** (configured at the gateways) |
+| `/stripe/success`, `/stripe/cancel`, `/crypto/*`, `/mixpay/*` *(Binance, Payeer, Perfect Money retired in stage 4)* | `portal/screens/PaymentReturn.jsx` inside `ProtectedRoute` | payment gateway return URLs — **paths must not change** (configured at the gateways) |
 | `/app/*` | `pages/Portal.tsx` → `portal/App.jsx` (own nested `<Routes>`) inside `ProtectedRoute` | portal (no-index) |
 | `*` | `pages/NotFound.tsx` | 404 |
 
@@ -191,11 +192,25 @@ Each step is a pure refactor, verified on Vite before moving on.
 - Notes: `_rsc … ERR_ABORTED` in the shot report = Next link prefetches cancelled when the tool closes the page
   (harmless). The 404 page's "Go to dashboard" prefetch of `/app/home` 404s until stage 4.
 
-### Stage 4 — Portal & payment returns on Next  *(G8)*
-- [ ] `src/app/app/[[...slug]]/page.tsx`: client-only `BrowserRouter` → `ProtectedRoute` → existing `Portal`.
-- [ ] `src/app/[gateway]/[outcome]/[[...rest]]/page.tsx`: client-only `PaymentReturn`; `notFound()` for unknown gateways.
-- [ ] `ProtectedRoute` / `GuestRoute`: full navigation for targets outside `/app`.
-- **Exit:** whole §8 checklist green on Next (incl. a real top-up return and realtime SMS). **Commit.**
+### Stage 4 — Portal & payment returns on Next  *(G8)* ✅ (code) · ⏳ real-account test
+**Rule for this stage (user):** don't touch the portal — new glue files only. `git diff` of `src/portal/` in this
+stage: **none** (the 3 portal files that differ from `main` are stage 1's `env.ts` imports).
+- [x] `src/app/app/[[...slug]]/page.tsx` → `views/ClientPortal.tsx` (`next/dynamic`, `ssr: false`, same spinner as
+      App.tsx) → `views/PortalRouter.tsx`: the same `BrowserRouter` + `ScrollToTop` + `ProtectedRoute` → `Portal` /
+      `PaymentReturn` routes App.tsx had.
+- [x] G8 solved **without editing the portal**: a `*` route (`LeaveToNext`) turns any react-router navigation outside
+      `/app` (ProtectedRoute's `<Navigate>` to `/auth/signin` / `/auth/verify-email`) into a full page load, so Next
+      renders it; never on first render (no reload loops).
+- [x] `src/app/[gateway]/[outcome]/page.tsx` → same client portal for payment returns; anything else → real 404.
+- [x] **Gateways retired (user decision, option B): Binance, Payeer, Perfect Money.** Live: Stripe, Crypto, MixPay —
+      matches `GET /api/payment-gateways`, which only offers those three. Remove the retired return URLs at the
+      providers. (`PaymentReturn.jsx` still contains their code paths — harmless, portal not touched.)
+- **Exit (automated):** `scratch/portal_checks.mjs` **7/7** — logged-out `/app/home` and `/stripe/success` → sign-in;
+  `/stripe/whatever` and the 3 retired gateways → 404; `/crypto/success`, `/mixpay/cancel` accepted; portal shell +
+  11 API endpoints with a token; in-portal navigation + Back button without a page reload. Landing **18/18 identical**,
+  hand-offs **7/7**.
+- [ ] **Exit (you, real account):** §8 portal checklist — sign in, dashboard, buy, a real top-up return (Stripe /
+  Crypto / MixPay), transfer, settings, live SMS + toast, logout.
 
 ### Stage 5 — SEO layer  *(needs the production domain)*
 - [ ] Unique `title` / `description` / Open Graph per landing page; `metadataBase` = production domain.
@@ -271,6 +286,7 @@ Each step is a pure refactor, verified on Vite before moving on.
 | Date | Stage | Result | Commit |
 |---|---|---|---|
 | 2026-10-05 | Plan written | — | `78dbce8` (main) |
+| 2026-10-05 | Stage 4 — portal & payments on Next | glue files only, portal untouched; 3 gateways retired; 7/7 portal checks, 18/18 identical | see branch |
 | 2026-10-05 | Stage 3 — landing & auth on Next | real HTML per page; 18/18 identical to Vite baseline; 7/7 checks | see branch |
 | 2026-10-05 | Stage 2 — Next.js scaffold | Next 16.3.8 builds a placeholder; Vite unchanged (18/18 identical, 7/7 checks) | see branch |
 | 2026-10-05 | Stage 1 — framework-neutral | G1, G2, G3, G4, G6 done on Vite; 18/18 screenshots identical; 7/7 hand-off checks | see branch |
