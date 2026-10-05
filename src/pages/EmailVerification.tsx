@@ -141,8 +141,8 @@ export function EmailVerificationPage() {
               </button>
 
               <button
-                onClick={() => {
-                  logout();
+                onClick={async () => {
+                  await logout();
                   navigate("/auth/signin");
                 }}
                 className="w-full bg-white border border-[#E1E2E7] text-[#2155f5] font-display font-medium py-3 rounded-full transition-colors hover:bg-[#f9f9fa]"

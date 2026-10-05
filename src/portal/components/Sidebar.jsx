@@ -56,9 +56,11 @@ export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }
     setShowLogoutConfirm(true);
   };
 
-  const confirmLogout = () => {
-    setShowLogoutConfirm(false);
-    onLogout();
+  // the popup stays up with a spinner until the server has ended the session
+  const [signingOut, setSigningOut] = React.useState(false);
+  const confirmLogout = async () => {
+    setSigningOut(true);
+    await onLogout();
   };
 
   return (
@@ -138,11 +140,18 @@ export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }
 
             {/* Logout confirmation — the shared Modal portals to <body>: rendered in place it
                 was trapped by the mobile drawer's transform and clipped to the drawer */}
-            <Modal open={showLogoutConfirm} onClose={() => setShowLogoutConfirm(false)} width={400}
+            <Modal open={showLogoutConfirm} onClose={() => !signingOut && setShowLogoutConfirm(false)} width={400}
               title="Sign out?" subtitle="You'll need to sign in again to access your account.">
               <div style={{ display: "flex", gap: 10 }}>
-                <Button full variant="subtle" onClick={() => setShowLogoutConfirm(false)}>Cancel</Button>
-                <Button full variant="danger" icon="logout" onClick={confirmLogout}>Sign out</Button>
+                <Button full variant="subtle" onClick={() => setShowLogoutConfirm(false)} disabled={signingOut}>Cancel</Button>
+                <Button full variant="danger" icon={signingOut ? undefined : "logout"} onClick={confirmLogout} disabled={signingOut}>
+                  {signingOut ? (
+                    <>
+                      <span style={{ width: 13, height: 13, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                      Signing out…
+                    </>
+                  ) : "Sign out"}
+                </Button>
               </div>
             </Modal>
           </div>

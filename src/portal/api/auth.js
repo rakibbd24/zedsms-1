@@ -222,12 +222,22 @@ export async function getMe() {
 }
 
 // Sign out on the server too — clearing localStorage alone left the token valid there.
-// POST /logout deletes the token that made the request (currentAccessToken). keepalive
-// lets it finish while the page navigates away; request() reads the token synchronously,
-// before it's cleared below.
-export function logout() {
+// POST /logout deletes the token that made the request (currentAccessToken):
+// 200 {"message":"Logged out"}, after which the token answers 401.
+//
+// Awaited rather than fired with keepalive: the call carries an Authorization header,
+// so it needs a CORS preflight, and keepalive requests with a preflight aren't reliable
+// across browsers — navigating away straight after could cancel it. Capped at
+// LOGOUT_WAIT_MS so a slow or offline network never traps the user signed in; the local
+// session is cleared either way. authRedirect: false — a token that's already dead
+// (401) is fine here, not a reason to bounce through the expired-session redirect.
+const LOGOUT_WAIT_MS = 4000;
+export async function logout() {
   if (localStorage.getItem("zedsms-token")) {
-    api.post("/logout", {}, { keepalive: true, authRedirect: false }).catch(() => {});
+    await Promise.race([
+      api.post("/logout", {}, { authRedirect: false }).catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, LOGOUT_WAIT_MS)),
+    ]);
   }
   localStorage.removeItem("zedsms-token");
   localStorage.removeItem("zedsms-user");

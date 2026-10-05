@@ -61,8 +61,9 @@ export function useAuth() {
   });
 
   // Logout
-  const logout = useCallback(() => {
-    authApi.logout();
+  // resolves once the server has ended the session (see api/auth logout)
+  const logout = useCallback(async () => {
+    await authApi.logout();
     queryClient.setQueryData(["auth:user"], null);
   }, [queryClient]);
 

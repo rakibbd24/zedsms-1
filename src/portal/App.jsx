@@ -307,9 +307,9 @@ function AppContent({ onLogoutRedirect }) {
     initializeCSSVariables(theme, t);
   }, []);
 
-  const handleLogout = () => {
-    apiLogout();
-    // Redirect directly to signin page
+  // waits for the server to end the session, then leaves (full reload clears all state)
+  const handleLogout = async () => {
+    await apiLogout();
     window.location.href = "/auth/signin";
   };
 
