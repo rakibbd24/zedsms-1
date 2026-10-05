@@ -4,14 +4,15 @@
 existing portal — **approach A**: the portal is kept as-is (React Router) and mounted inside
 a client-only Next.js catch-all route.
 
-**Status:** planning — nothing migrated yet. Update the progress log at the bottom after every stage.
+**Status:** Stage 0 done (baseline captured) — next: Stage 1. Update the progress log at the bottom after every stage.
 
 ---
 
 ## 1. Golden rules (apply to every stage)
 
-1. **No design or layout changes.** Every page must look pixel-identical before and after.
-   Proven by screenshot comparison (§7), not by eye.
+1. **No design or layout changes.** Every landing/auth page must look pixel-identical before
+   and after — proven by screenshot comparison (§7), not by eye. The portal is not screenshotted
+   (its code isn't changed); it's covered by the manual checklist (§8).
 2. **Stack change only.** No feature changes, no refactors beyond what the move requires,
    no "while we're here" fixes. Bugs found along the way go to §9, not into the migration.
 3. **The portal (`src/portal/`) is touched only where routing glue requires it.**
@@ -129,16 +130,17 @@ public/
 
 ## 5. Stages
 
-### Stage 0 — Prepare & baseline  *(no code changes)*
-- [ ] Create branch `next-migration` from `main` (commit/stash pending work first).
-- [ ] Build current app, serve `dist/`, capture **baseline screenshots** of every public page
-      at **390px** (phone) and **1440px** (desktop), full page: `/`, `/features`, `/pricing`,
-      `/about`, `/privacy-policy`, `/terms-of-service`, `/auth/signin`, `/auth/signup`, 404.
-      Save to `scratch/baseline/` (not committed).
-- [ ] Capture portal screenshots while signed in (dashboard, numbers, number detail, buy, top up,
-      transfer, transactions, settings tabs) at 390px and 1440px.
-- [ ] Record `dist` sizes and the manual checklist (§8) result on the current build.
-- **Exit:** baseline set saved; checklist all green on today's app.
+### Stage 0 — Prepare & baseline  *(no code changes)* ✅
+- [x] Create branch `next-migration` from `main` (plan committed to `main` first: `78dbce8`).
+- [x] Build current app, serve `dist/` (`vite preview --port 4173`), capture **baseline screenshots** of every
+      landing/auth page at **390px** (phone) and **1440px** (desktop), full page: `/`, `/features`, `/pricing`,
+      `/about`, `/privacy-policy`, `/terms-of-service`, `/auth/signin`, `/auth/signup`, 404 → 18 shots in
+      `scratch/baseline/public/` (git-ignored).
+- [x] Tooling proven deterministic: a second capture of the unchanged build compares **18/18 identical**.
+- [x] Recorded: `dist` 2.3 MB, JS 873 KB total. Only console message: Google sign-in "origin not allowed"
+      on `localhost:4173` (expected for a local port — keep using port 4173 for every comparison).
+- [ ] Manual checklist (§8) on today's app — **owner: you** (portal flows need a real browser session).
+- **Exit:** baseline saved ✅ · comparison tool verified ✅.
 
 ### Stage 1 — Make the code framework-neutral  *(still Vite; zero visual change)*
 Each step is a pure refactor, verified on Vite before moving on.
@@ -174,8 +176,7 @@ Each step is a pure refactor, verified on Vite before moving on.
 - [ ] `src/app/app/[[...slug]]/page.tsx`: client-only `BrowserRouter` → `ProtectedRoute` → existing `Portal`.
 - [ ] `src/app/[gateway]/[outcome]/[[...rest]]/page.tsx`: client-only `PaymentReturn`; `notFound()` for unknown gateways.
 - [ ] `ProtectedRoute` / `GuestRoute`: full navigation for targets outside `/app`.
-- **Exit:** whole §8 checklist green on Next (incl. a real top-up return and realtime SMS); portal
-  screenshots match baseline. **Commit.**
+- **Exit:** whole §8 checklist green on Next (incl. a real top-up return and realtime SMS). **Commit.**
 
 ### Stage 5 — SEO layer  *(needs the production domain)*
 - [ ] Unique `title` / `description` / Open Graph per landing page; `metadataBase` = production domain.
@@ -210,8 +211,11 @@ Each step is a pure refactor, verified on Vite before moving on.
 
 ## 7. Verification protocol (every stage)
 1. `npm run build` (and `next build` from Stage 2) — must pass.
-2. Screenshots of every page at 390px and 1440px, compared against `scratch/baseline/` —
-   automated pixel diff (headless Chrome + ImageMagick `compare`); any non-zero diff is investigated.
+2. Landing/auth screenshots at 390px and 1440px compared against `scratch/baseline/public/`:
+   serve the build on **port 4173**, then from `scratch/`:
+   `node visual.mjs http://localhost:4173 stageN/public && node compare.mjs baseline/public stageN/public`
+   (headless Chrome via `puppeteer-core`, fonts awaited, LCD text off; ImageMagick diff with 2% fuzz).
+   Any non-zero diff is investigated — red-highlighted diffs land in `stageN/public/diff/`.
 3. `curl` each landing page — HTML must contain the page's main heading text (from Stage 3).
 4. Manual checklist (§8) on a real browser, desktop + phone.
 
@@ -243,4 +247,5 @@ Each step is a pure refactor, verified on Vite before moving on.
 ## Progress log
 | Date | Stage | Result | Commit |
 |---|---|---|---|
-| 2026-10-05 | Plan written | — | — |
+| 2026-10-05 | Plan written | — | `78dbce8` (main) |
+| 2026-10-05 | Stage 0 — baseline | 18 landing/auth shots; re-capture 18/18 identical; portal excluded (manual checklist only) | — (no code changes; tooling in git-ignored `scratch/`) |

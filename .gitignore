@@ -23,3 +23,6 @@ docs
 *.njsproj
 *.sln
 *.sw?
+
+# migration tooling + screenshot baselines (local only)
+scratch
