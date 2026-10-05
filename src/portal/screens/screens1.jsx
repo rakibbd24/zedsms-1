@@ -28,13 +28,6 @@ const formatExpiryDate = (expiryTs) => {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-// Calendar date a number expires, derived from its days-remaining (fallback)
-const expiryDate = (days) => {
-  const d = new Date();
-  d.setDate(d.getDate() + (days || 0));
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-};
-
 // ---- reactivation (restore) of lapsed numbers ----
 // A number that expires isn't released immediately: it sits in a grace window
 // during which POST /user/restore-number brings it back on the same number.
@@ -432,8 +425,6 @@ const MessageSkeleton = ({ rows = 4 }) => (
 );
 
 // ============ MY NUMBERS (master-detail inbox) ============
-const RENT_OPTS = [{ d: 7, label: "1 week" }, { d: 14, label: "2 weeks" }, { d: 30, label: "1 month" }, { d: 90, label: "3 months" }];
-// pricing helpers (svcPriceOf / countryRentOf / weeklyPriceOf) come from data.jsx
 
 const modalInput = { width: "100%", height: 44, padding: "0 14px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text)", fontSize: 14, outline: "none" };
 
@@ -765,7 +756,6 @@ const NumbersScreen = () => {
   const [filter, setFilter] = React.useState("active");
   const [typeFilter, setTypeFilter] = React.useState("all"); // 'all' | 'Private' | 'Shared'
   const { data: apiNumbers = [], isLoading: numbersLoading } = useNumbers();
-  const { data: user } = useUser();
   const { data: balanceData } = useBalance();
   // ?q= comes from the top-bar search
   const [searchParams] = useSearchParams();
@@ -827,9 +817,6 @@ const NumbersScreen = () => {
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
-
-  // Get recent messages to calculate unread counts per number
-  const { data: recentMessages = [] } = useRecentMessages();
 
   // Normalize API numbers to component format
   const numbers = React.useMemo(() => {
@@ -1070,7 +1057,7 @@ const NumbersScreen = () => {
           setMsgTab("inbox");
           showToast(`Message sent to ${to}`);
         },
-        onError: (err) => showToast("Failed to send SMS", "danger")
+        onError: () => showToast("Failed to send SMS", "danger")
       });
     }
   };

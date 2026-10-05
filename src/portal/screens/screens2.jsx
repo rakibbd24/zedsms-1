@@ -22,7 +22,6 @@ import { useTransactions, useTransferBalance } from "../hooks/useTransactions";
 import { TRANSACTION_STATUS } from "../api/transactions";
 import { useProfile, useChangePassword, useRequestEmailChange, useVerifyEmailChange, useSessions, useRevokeSession, useRevokeOtherSessions, use2fa, useGenerate2faSecret, useEnable2fa, useDisable2fa, useRegenerateRecoveryCodes, useDeleteAccount } from "../hooks/useSettings";
 import { useAuthContext } from "../context/AuthContext";
-import { LOGIN_METHODS } from "../mocks/seed";
 import { NotificationsSettings } from "./notifications";
 
 // ============ BUY NUMBER ============
@@ -1507,6 +1506,14 @@ const sessionWhen = (iso) => {
   if (mins < 60 * 24) return `${Math.floor(mins / 60)}h ago`;
   if (mins < 60 * 24 * 7) return `${Math.floor(mins / 1440)}d ago`;
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+// how each sign-in provider is labelled on the Profile tab
+const LOGIN_METHODS = {
+  email: { label: "Email & password", color: "#6B6F76" },
+  google: { label: "Google", color: "#EA4335" },
+  telegram: { label: "Telegram", color: "#229ED9" },
+  apple: { label: "Apple", color: "#16171A" },
 };
 
 const SETTINGS_TABS = [{ id: "profile", label: "Profile" }, { id: "security", label: "Security" }, { id: "appearance", label: "Appearance" }, { id: "notifications", label: "Notifications" }];

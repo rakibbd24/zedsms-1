@@ -11,8 +11,8 @@ import { api } from "./client";
 //   POST /user/notification-channel/update/mobile-numbers   → { account_identifier, notification_number: [id] }
 //   POST /user/notification-channel/update/system-notifications → { account_identifier, system_notification_type: [id] }
 
-export const CHANNEL_EMAIL = 1;
-export const CHANNEL_TELEGRAM = 2;
+const CHANNEL_EMAIL = 1;
+const CHANNEL_TELEGRAM = 2;
 export const TELEGRAM_BOT = "@zedsmsbot";
 
 const msgOf = (err, fallback) =>

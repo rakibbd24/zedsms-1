@@ -111,6 +111,3 @@ export const Carousel = ({ items, onDismiss, onRead, itemType = 'alert' }) => {
   );
 };
 
-export const UserAlertsCarousel = ({ alerts, onDismiss, onRead }) => {
-  return <Carousel items={alerts} onDismiss={onDismiss} onRead={onRead} itemType="alert" />;
-};

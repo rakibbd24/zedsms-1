@@ -64,24 +64,6 @@ export async function getNumbers() {
   }
 }
 
-// Get SMS messages for a specific number
-export async function getNumberMessages(numberId) {
-  if (!numberId) return [];
-  try {
-    const response = await api.get(`/user/all-sms/${numberId}`);
-    // API returns paginated response
-    if (response?.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    if (Array.isArray(response)) return response;
-    if (response?.data && Array.isArray(response.data)) return response.data;
-    return [];
-  } catch (error) {
-    console.error("Error fetching messages:", error);
-    return [];
-  }
-}
-
 // Get extension plans and pricing for a number
 export async function getNumberExtensionPlans(numberId, typeId) {
   try {
@@ -217,7 +199,7 @@ export async function updateAutoRenew(numberId, enabled, typeId) {
 export async function sendSmsFromNumber(numberId, { to, body }) {
   try {
     return api.post(`/user/send-sms/${numberId}`, { to, message: body });
-  } catch (err) {
+  } catch {
     throw new Error("Failed to send SMS");
   }
 }

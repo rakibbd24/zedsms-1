@@ -519,12 +519,4 @@ const EventsMenu = ({ events, onChange }) => {
   );
 };
 
-// Shared toggle (kept for other settings screens that import it).
-const Toggle = ({ on, onClick, disabled }) => (
-  <button onClick={disabled ? undefined : onClick} aria-pressed={!!on} disabled={disabled}
-    style={{ width: 42, height: 24, borderRadius: 99, background: on ? "var(--accent)" : "var(--surface-3)", padding: 3, transition: "background 0.18s", flexShrink: 0, opacity: disabled ? 0.45 : 1, cursor: disabled ? "not-allowed" : "pointer" }}>
-    <span style={{ display: "block", width: 18, height: 18, borderRadius: 99, background: "#fff", transform: on ? "translateX(18px)" : "none", transition: "transform 0.18s", boxShadow: "var(--shadow-sm)" }} />
-  </button>
-);
-
-export { NotificationsSettings, Toggle };
+export { NotificationsSettings };

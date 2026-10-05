@@ -44,7 +44,7 @@ const isPrivateNumber = (n) => {
 const seenSms = new Set();
 const SEEN_LIMIT = 500;
 
-export function applyLiveSms(qc, event) {
+function applyLiveSms(qc, event) {
   if (event.sms_id != null) {
     if (seenSms.has(event.sms_id)) return;
     seenSms.add(event.sms_id);

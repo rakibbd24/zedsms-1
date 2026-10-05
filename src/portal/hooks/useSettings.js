@@ -1,23 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  getProfile, updateProfile, changePassword, requestEmailChange, verifyEmailChange,
+  getProfile, changePassword, requestEmailChange, verifyEmailChange,
   getSessions, revokeSession, revokeOtherSessions,
   get2fa, generate2faSecret, enable2fa, disable2fa, regenerateRecoveryCodes, deleteAccount,
 } from "../api/settings";
 
 export function useProfile() {
   return useQuery({ queryKey: ["profile"], queryFn: getProfile });
-}
-
-export function useUpdateProfile() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: updateProfile,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["profile"] });
-      qc.invalidateQueries({ queryKey: ["me"] });
-    },
-  });
 }
 
 export function useChangePassword() {

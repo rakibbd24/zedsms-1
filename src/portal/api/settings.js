@@ -17,18 +17,6 @@ export async function getProfile() {
   return res?.data || null;
 }
 
-// UserDetails fields; the avatar upload the backend also accepts needs multipart,
-// which this JSON client doesn't send — the portal has no avatar picker yet.
-export async function updateProfile({ phone, address, country, profession }) {
-  try {
-    const res = await api.post("/user/update-profile", { phone, address, country, profession });
-    if (res?.message !== "success") throw new Error(res?.message || "Could not save your profile");
-    return res.data;
-  } catch (err) {
-    throw new Error(msgOf(err, "Could not save your profile"));
-  }
-}
-
 // ---- password ----
 
 // Backend answers 200 with message "Current password does not match" on a wrong password.

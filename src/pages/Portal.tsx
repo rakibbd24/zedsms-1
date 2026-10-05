@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 // @ts-ignore
 import PortalApp from "../portal/App";
 
@@ -21,17 +20,10 @@ const portalStyles = `
 `;
 
 export default function Portal() {
-  const navigate = useNavigate();
-
-  // Handle logout redirect to home
-  const handleLogoutRedirect = () => {
-    navigate("/");
-  };
-
   return (
     <>
       <style>{portalStyles}</style>
-      <PortalApp onLogoutRedirect={handleLogoutRedirect} />
+      <PortalApp />
     </>
   );
 }

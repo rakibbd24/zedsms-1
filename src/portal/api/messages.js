@@ -99,7 +99,7 @@ function getServiceLetter(comPort) {
   return letters[comPort] || (comPort ? comPort[0].toUpperCase() : "?");
 }
 
-export const MESSAGES_PER_PAGE = 20;
+const MESSAGES_PER_PAGE = 20;
 
 // One page of a number's SMS, newest first.
 // GET /user/all-sms/{id}?page=N&per_page=20 → { message, data: <laravel paginator> }
@@ -130,38 +130,3 @@ export async function getMessages(numberId, page = 1, typeId) {
   }
 }
 
-// Get sent SMS messages for a number
-export async function getSent(numberId) {
-  try {
-    return api.get(`/user/sent-sms/${numberId}`);
-  } catch (err) {
-    throw new Error("Failed to get sent messages");
-  }
-}
-
-// Send an SMS from a number
-export async function sendSms(numberId, { to, body }) {
-  try {
-    return api.post(`/user/send-sms/${numberId}`, { to, message: body });
-  } catch (err) {
-    throw new Error("Failed to send SMS");
-  }
-}
-
-// Delete a message
-export async function deleteMessage(messageId) {
-  try {
-    return api.delete(`/user/messages/${messageId}`);
-  } catch (err) {
-    throw new Error("Failed to delete message");
-  }
-}
-
-// Mark message as read
-export async function markAsRead(messageId) {
-  try {
-    return api.patch(`/user/messages/${messageId}/read`);
-  } catch (err) {
-    throw new Error("Failed to mark message as read");
-  }
-}

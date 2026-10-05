@@ -71,7 +71,7 @@ export function OTPVerificationPage() {
           }
         );
       });
-    } catch (err) {
+    } catch {
       // Error handled in callback
     }
   };

@@ -6,9 +6,3 @@
 import { allCountries, type WorldCountry } from "./countries.generated";
 
 export { allCountries, type WorldCountry };
-
-export function findCountry(code: string): WorldCountry {
-  const found = allCountries.find((c) => c.code === code);
-  if (!found) throw new Error(`Unknown country code: ${code}`);
-  return found;
-}

@@ -2,15 +2,10 @@ import React from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
-import { TweaksPanel, TweakSection, TweakColor, TweakRadio } from "./components/TweaksPanel";
-import { useTweaks } from "./hooks/useTweaks";
 import { HomeScreen, NumbersScreen } from "./screens/screens1";
 import { numberKeyOf } from "./lib/numberKey";
 import { isOwnEcho } from "./lib/ownActions";
 import { BuyScreen, TopUpScreen, TransferScreen, TransactionsScreen, SettingsScreen } from "./screens/screens2";
-import AlertsDesignPreview from "./screens/AlertsDesignPreview";
-import { Icon } from "./components/Icon";
-import { LogoMark } from "./components/LogoMark";
 import { logout as apiLogout } from "./api/auth";
 import { useAuthContext } from "./context/AuthContext";
 import { useRealtime } from "./hooks/useRealtime";
@@ -263,12 +258,11 @@ const initializeCSSVariables = (theme = "light", t = {}) => {
   }
 };
 
-function AppContent({ onLogoutRedirect }) {
-  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-    "accent": "#2F54EB",
-    "density": "regular",
-    "corners": "soft"
-  }/*EDITMODE-END*/;
+// accent / density / corners — fixed now; these were the defaults of the dev-only
+// Tweaks panel (a design-tool harness) that used to live here
+const LOOK = { accent: "#2F54EB", density: "regular", corners: "soft" };
+
+function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -283,7 +277,7 @@ function AppContent({ onLogoutRedirect }) {
   const [theme, setTheme] = React.useState(() => localStorage.getItem("zedsms-theme") || "light");
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const scrollRef = React.useRef(null);
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const t = LOOK;
 
   // Live updates: new SMS, numbers and balance refresh as soon as the backend broadcasts
   const { user } = useAuthContext();
@@ -369,25 +363,6 @@ function AppContent({ onLogoutRedirect }) {
         <Sidebar route={route} setRoute={setRoute} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} onLogout={handleLogout} />
         <div className="content-wrap">
           <Topbar route={route} setRoute={setRoute} theme={theme} toggleTheme={toggleTheme} setMobileOpen={setMobileOpen} />
-          {import.meta.env.DEV && (
-            <TweaksPanel>
-              <TweakSection label="Brand accent" />
-              <TweakColor label="Accent" value={t.accent}
-                options={["#2F54EB", "#5B54E8", "#0E9384", "#7C5CE0", "#0B6BCB"]}
-                onChange={(v) => setTweak("accent", v)} />
-              <TweakSection label="Layout" />
-              <TweakRadio label="Density" value={t.density}
-                options={["compact", "regular", "roomy"]}
-                onChange={(v) => setTweak("density", v)} />
-              <TweakRadio label="Corners" value={t.corners}
-                options={["sharp", "soft", "round"]}
-                onChange={(v) => setTweak("corners", v)} />
-              <TweakSection label="Theme" />
-              <TweakRadio label="Mode" value={theme}
-                options={["light", "dark"]}
-                onChange={(v) => setTheme(v)} />
-            </TweaksPanel>
-          )}
           <main ref={scrollRef} className="content-inner">
             <Routes>
               <Route path="/home" element={<HomeScreen setRoute={setRoute} openNumber={goNumbers} />} />
@@ -398,7 +373,6 @@ function AppContent({ onLogoutRedirect }) {
               <Route path="/transfer" element={<TransferScreen />} />
               <Route path="/transactions" element={<TransactionsScreen />} />
               <Route path="/settings" element={<SettingsScreen theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout} />} />
-              <Route path="/alerts-preview" element={<AlertsDesignPreview />} />
               <Route path="/" element={<HomeScreen setRoute={setRoute} openNumber={goNumbers} />} />
               {/* unknown /app/... paths land on the overview instead of an empty page */}
               <Route path="*" element={<Navigate to="/app/home" replace />} />

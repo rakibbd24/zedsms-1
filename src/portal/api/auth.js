@@ -188,7 +188,7 @@ export async function getEmailVerifyStatus() {
       return { verified: true, user: normalizedUser };
     }
     return { verified: false, user: null };
-  } catch (err) {
+  } catch {
     return { verified: false, user: null };
   }
 }

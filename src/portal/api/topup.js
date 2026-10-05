@@ -19,7 +19,7 @@ const assetUrl = (path) => (!path ? null : /^https?:\/\//i.test(path) ? path : A
 const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
 
 // Gateways are matched by the backend's `name` column (that's what the controllers look up).
-export const GATEWAYS = {
+const GATEWAYS = {
   stripe:       { name: "Stripe",        create: "/user/payment/stripe/create" },
   crypto:       { name: "Crypto",        create: "/user/payment/crypto/create" },
   mixpay:       { name: "MixPay",        create: "/user/payment/mixpay/create" },
@@ -72,7 +72,7 @@ export const amountError = (gateway, amount) => {
 
 // ---- pending top-up, kept across the round-trip to the gateway ----
 // Stripe, Payeer and Perfect Money don't echo the transaction id back in the return URL.
-export const savePendingTopUp = (entry) => {
+const savePendingTopUp = (entry) => {
   try { localStorage.setItem(PENDING_KEY, JSON.stringify({ ...entry, at: Date.now() })); } catch { /* storage unavailable */ }
 };
 export const readPendingTopUp = () => {

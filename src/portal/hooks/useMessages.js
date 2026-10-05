@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getMessages, getSent, sendSms, getRecentMessages } from "../api/messages";
+import { useQuery } from "@tanstack/react-query";
+import { getMessages, getRecentMessages } from "../api/messages";
 
 export function useRecentMessages() {
   return useQuery({
@@ -29,14 +29,3 @@ export function useMessages(numberId, page = 1, typeId) {
   });
 }
 
-export function useSent(numberId) {
-  return useQuery({ queryKey: ["sent", numberId ?? "all"], queryFn: () => getSent(numberId), enabled: !!numberId });
-}
-
-export function useSendSms(numberId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ to, body }) => sendSms(numberId, { to, body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sent", numberId ?? "all"] }),
-  });
-}

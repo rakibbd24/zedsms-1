@@ -47,7 +47,7 @@ const unwrap = (res, fallback) => {
 const reasonOf = (err, fallback) =>
   (typeof err?.body?.data === "string" && err.body.data) || err?.message || fallback;
 
-export const assetUrl = (path) => {
+const assetUrl = (path) => {
   if (!path) return null;
   return /^https?:\/\//i.test(path) ? path : ASSET_BASE + String(path).replace(/^\//, "");
 };
