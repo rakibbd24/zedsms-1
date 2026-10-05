@@ -31,11 +31,11 @@ export const Topbar = ({ route, setRoute, theme, toggleTheme, setMobileOpen }) =
   const unread = notifications.filter((n) => !n.readAt).length;
 
   return (
-    <header style={{ position: "sticky", top: 10, zIndex: 30, background: "color-mix(in srgb, var(--bg) 82%, transparent)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--border)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, height: 64, padding: "0 24px", maxWidth: 1180, margin: "0 auto" }}>
-        <button onClick={() => setMobileOpen(true)} className="mobile-only-flex" style={{ color: "var(--text-muted)" }}><Icon name="menu" size={22} /></button>
-        <div className="desktop-only">
-          <h1 style={{ margin: 0, fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em" }}>{PAGE_TITLES[route]}</h1>
+    <header className="topbar" style={{ position: "sticky", top: 10, zIndex: 30, background: "color-mix(in srgb, var(--bg) 82%, transparent)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--border)" }}>
+      <div className="topbar-inner" style={{ display: "flex", alignItems: "center", gap: 14, height: 64, padding: "0 24px", maxWidth: 1180, margin: "0 auto" }}>
+        <button onClick={() => setMobileOpen(true)} aria-label="Open menu" className="mobile-only-flex" style={{ width: 38, height: 38, alignItems: "center", justifyContent: "center", marginLeft: -8, color: "var(--text-muted)" }}><Icon name="menu" size={22} /></button>
+        <div className="topbar-title" style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{PAGE_TITLES[route]}</h1>
         </div>
 
         {/* search */}
@@ -63,7 +63,7 @@ export const Topbar = ({ route, setRoute, theme, toggleTheme, setMobileOpen }) =
           {notifOpen && (
             <>
               <div onClick={() => setNotifOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-              <div style={{ position: "absolute", right: 0, top: 46, width: 320, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, boxShadow: "var(--shadow-pop)", zIndex: 50, overflow: "hidden", animation: "popIn 0.16s ease both" }}>
+              <div style={{ position: "absolute", right: 0, top: 46, width: "min(320px, calc(100vw - 24px))", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, boxShadow: "var(--shadow-pop)", zIndex: 50, overflow: "hidden", animation: "popIn 0.16s ease both" }}>
                 <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>Notifications{unread > 0 && <span className="tnum" style={{ color: "var(--text-faint)", fontWeight: 500 }}> · {unread} new</span>}</span>
                   <button

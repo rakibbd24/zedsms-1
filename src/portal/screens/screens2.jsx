@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -9,6 +10,8 @@ import { CodeChip } from "../components/ui/CodeChip";
 import { Empty } from "../components/ui/Empty";
 import { Modal } from "../components/ui/Modal";
 import { Toast } from "../components/ui/Toast";
+import { Pagination } from "../components/ui/Pagination";
+import { copyText } from "../lib/clipboard";
 import { useUser } from "../hooks/useUser";
 import { useBalance } from "../hooks/useBalance";
 import { useSharedCountries, useSharedServices, useSharedNumbers, useSharedRentTimes, usePrivateCountries, usePrivateAvailableNumbers, usePrivatePlans, usePurchaseNumber, usePurchaseBulkNumbers } from "../hooks/useBuy";
@@ -119,19 +122,24 @@ const BuyNotice = ({ tone = "neutral", icon = "info", children, action }) => {
 };
 
 const SearchBox = ({ value, onChange, placeholder = "Search", width = 110 }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 7, height: 32, padding: "0 11px", borderRadius: 9, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-faint)" }}>
+  <div className="buy-search" style={{ display: "flex", alignItems: "center", gap: 7, height: 32, padding: "0 11px", borderRadius: 9, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-faint)" }}>
     <Icon name="search" size={14} />
     <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ border: "none", background: "transparent", outline: "none", color: "var(--text)", fontSize: 12.5, width }} />
   </div>
 );
 
+const BUY_TYPES = [
+  { k: "Private", d: "A full private number. Works with any service — priced by country.", caps: [{ icon: "msg", label: "SMS" }, { icon: "phone", label: "Voice" }] },
+  { k: "Shared", d: "A number for one specific service. Cheaper, from a shared pool.", caps: [{ icon: "inbox", label: "Receive SMS" }] },
+];
+
 const StepTitle = ({ n, children, sub, right }) => (
-  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+  <div className="step-title" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
     <div>
       <h3 style={{ margin: sub ? "0 0 4px" : 0, fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}><span style={{ color: "var(--accent)" }}>{n}.</span>&nbsp; {children}</h3>
       {sub && <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>{sub}</p>}
     </div>
-    {right}
+    {right && <div className="step-title-right">{right}</div>}
   </div>
 );
 
@@ -140,12 +148,25 @@ const SelDot = ({ size = 19 }) => (
   <span style={{ width: size, height: size, borderRadius: 99, background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="check" size={size - 7} strokeWidth={3} style={{ color: "#fff" }} /></span>
 );
 
-const NumberGrid = ({ items, pickedKey, onPick }) => (
-  <div className="country-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, maxHeight: 300, overflowY: "auto", paddingRight: 4, marginRight: -4 }}>
+const NumberGrid = ({ items, pickedKey, onPick }) => {
+  // a preselected (e.g. random) number can sit below the fold of this scroll box;
+  // scroll the box itself, not the page
+  const boxRef = React.useRef(null);
+  React.useEffect(() => {
+    const box = boxRef.current;
+    const el = box?.querySelector('[data-sel="true"]');
+    if (!el) return;
+    const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    if (top < box.scrollTop || top + el.offsetHeight > box.scrollTop + box.clientHeight) {
+      box.scrollTop = top - box.clientHeight / 2 + el.offsetHeight / 2;
+    }
+  }, [pickedKey]);
+  return (
+  <div ref={boxRef} className="country-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, maxHeight: 300, overflowY: "auto", paddingRight: 4, marginRight: -4 }}>
     {items.map((n) => {
       const sel = pickedKey === n.key;
       return (
-        <button key={n.key} onClick={() => onPick(n)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 13px", borderRadius: 12, ...pickCard(sel) }}>
+        <button key={n.key} data-sel={sel} onClick={() => onPick(n)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 13px", borderRadius: 12, ...pickCard(sel) }}>
           <span style={{ width: 19, height: 19, borderRadius: 99, border: `2px solid ${sel ? "var(--accent)" : "var(--border-strong)"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: sel ? "var(--accent)" : "transparent" }}>{sel && <Icon name="check" size={11} strokeWidth={3} style={{ color: "#fff" }} />}</span>
           <span style={{ minWidth: 0 }}>
             <span className="mono tnum" style={{ display: "block", fontSize: 13, fontWeight: 550, color: sel ? "var(--accent)" : "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.number}</span>
@@ -155,7 +176,8 @@ const NumberGrid = ({ items, pickedKey, onPick }) => (
       );
     })}
   </div>
-);
+  );
+};
 
 const ServiceLogo = ({ service, size = 40 }) => (
   service?.icon
@@ -184,6 +206,9 @@ const BulkSummaryRow = ({ label, children }) => (
   </div>
 );
 
+const bulkLabel = { fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500, marginBottom: 8 };
+const bulkStepBtn = { width: 40, height: "100%", flexShrink: 0, fontSize: 18, fontWeight: 500, color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" };
+
 const BulkOrderModal = ({ onClose, country, plans, initialPlan, balance, balanceKnown, onSent }) => {
   const [qty, setQty] = React.useState("10");
   const [planId, setPlanId] = React.useState(initialPlan?.id ?? plans[0]?.id ?? null);
@@ -196,11 +221,13 @@ const BulkOrderModal = ({ onClose, country, plans, initialPlan, balance, balance
   const n = Number(qty);
   const qtyValid = Number.isInteger(n) && n >= BULK_MIN && n <= BULK_MAX;
   const total = plan && qtyValid ? Math.round(plan.price * n * 100) / 100 : null;
+  const after = balanceKnown && total != null ? Math.round((balance - total) * 100) / 100 : null;
   const blocker = !country ? "Choose a country first"
     : !plan ? "Choose a plan"
     : !qtyValid ? `Enter a quantity between ${BULK_MIN} and ${BULK_MAX}`
     : balanceKnown && total > balance + 0.0001 ? "Insufficient balance"
     : null;
+  const step = (d) => setQty(String(Math.min(BULK_MAX, Math.max(BULK_MIN, (qtyValid ? n : BULK_MIN) + d))));
 
   const submit = () => {
     if (blocker || bulk.isPending) return;
@@ -208,59 +235,136 @@ const BulkOrderModal = ({ onClose, country, plans, initialPlan, balance, balance
   };
 
   return (
-    <Modal open onClose={onClose} title="Bulk order" subtitle="Buy many private numbers on one plan in a single order." width={460}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 9, padding: "13px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: 16 }}>
-        <BulkSummaryRow label="Type">Private</BulkSummaryRow>
-        <BulkSummaryRow label="Country">{country?.name || "—"}</BulkSummaryRow>
+    <Modal open onClose={onClose} title="Bulk order" width={480}
+      subtitle={`Private numbers${country ? ` in ${country.name}` : ""} · one plan, one order`}>
+      {/* plan */}
+      <div style={bulkLabel}>Plan</div>
+      <div className="bulk-plans" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginBottom: 18 }}>
+        {plans.map((p) => {
+          const sel = p.id === planId;
+          return (
+            <button key={p.id} type="button" onClick={() => setPlanId(p.id)} style={{ padding: "11px 12px", borderRadius: 11, ...pickCard(sel) }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, minHeight: 17 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>{p.label}</span>
+                {p.off > 0 && <span className="tnum" style={{ fontSize: 10, fontWeight: 700, color: "var(--success)", background: "var(--success-soft)", padding: "1px 6px", borderRadius: 99 }}>{p.off}% off</span>}
+                {sel && <span style={{ marginLeft: "auto" }}><SelDot size={16} /></span>}
+              </div>
+              <div className="tnum" style={{ fontSize: 12.5, marginTop: 3, color: "var(--text-faint)" }}>
+                <span className="mono" style={{ fontWeight: 600, color: sel ? "var(--accent)" : "var(--text-muted)" }}>${(p.price || 0).toFixed(2)}</span> / number
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      <Field label="Plan">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {plans.map((p) => (
-            <button key={p.id} type="button" onClick={() => setPlanId(p.id)}
-              style={{ height: 32, padding: "0 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, ...pickCard(p.id === planId) }}>
-              {p.label} · <span className="tnum">${(p.price || 0).toFixed(2)}</span>
-            </button>
-          ))}
+      {/* quantity: stepper + quick picks */}
+      <div style={bulkLabel}>How many numbers?</div>
+      <div className="bulk-qty" style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", flex: "0 0 152px", height: 44, borderRadius: 11, overflow: "hidden", background: "var(--surface)", border: `1px solid ${!qtyValid && qty !== "" ? "var(--danger)" : "var(--border-strong)"}` }}>
+          <button type="button" onClick={() => step(-1)} disabled={qtyValid && n <= BULK_MIN} aria-label="Fewer numbers" style={{ ...bulkStepBtn, opacity: qtyValid && n <= BULK_MIN ? 0.35 : 1 }}>−</button>
+          <input type="number" inputMode="numeric" min={BULK_MIN} max={BULK_MAX} step={1} aria-label="Number of numbers"
+            // on touch screens autofocus pops the keyboard over the sheet before the plan is seen
+            autoFocus={!window.matchMedia?.("(pointer: coarse)").matches}
+            value={qty} onChange={(e) => setQty(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+            className="mono tnum" style={{ flex: 1, minWidth: 0, height: "100%", border: "none", background: "transparent", outline: "none", textAlign: "center", fontSize: 15, fontWeight: 600, color: "var(--text)" }} />
+          <button type="button" onClick={() => step(1)} disabled={qtyValid && n >= BULK_MAX} aria-label="More numbers" style={{ ...bulkStepBtn, opacity: qtyValid && n >= BULK_MAX ? 0.35 : 1 }}>+</button>
         </div>
-      </Field>
+        <div className="bulk-presets" style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, padding: 3, borderRadius: 11, background: "var(--surface-2)" }}>
+          {BULK_PRESETS.map((p) => {
+            const on = n === p;
+            return (
+              <button key={p} type="button" onClick={() => setQty(String(p))} className="tnum"
+                style={{ borderRadius: 8, fontSize: 12.5, fontWeight: 600, background: on ? "var(--surface)" : "transparent", color: on ? "var(--text)" : "var(--text-muted)", boxShadow: on ? "var(--shadow-sm)" : "none", border: `1px solid ${on ? "var(--border)" : "transparent"}` }}>
+                {p}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="tnum" style={{ fontSize: 11.5, marginTop: 7, marginBottom: 18, color: !qtyValid && qty !== "" ? "var(--danger)" : "var(--text-faint)" }}>
+        {BULK_MIN}–{BULK_MAX} numbers per order
+      </div>
 
-      <Field label="How many numbers?">
-        <input type="number" inputMode="numeric" min={BULK_MIN} max={BULK_MAX} step={1} autoFocus
-          value={qty} onChange={(e) => setQty(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-          className="tnum" style={settingsInput} />
-        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-          {BULK_PRESETS.map((p) => (
-            <button key={p} type="button" onClick={() => setQty(String(p))} className="tnum"
-              style={{ height: 28, padding: "0 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, ...pickCard(n === p) }}>
-              {p}
-            </button>
-          ))}
+      {/* summary */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "13px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: 14 }}>
+        <BulkSummaryRow label={plan && qtyValid ? `${n} × $${plan.price.toFixed(2)}` : "Numbers"}>
+          <span className="tnum">{total != null ? `$${total.toFixed(2)}` : "—"}</span>
+        </BulkSummaryRow>
+        {balanceKnown && (
+          <BulkSummaryRow label="Balance after">
+            <span className="tnum" style={{ color: after != null && after < 0 ? "var(--danger)" : undefined }}>
+              {after == null ? "—" : after < 0 ? `$${Math.abs(after).toFixed(2)} short` : `$${after.toFixed(2)}`}
+            </span>
+          </BulkSummaryRow>
+        )}
+        <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
+          <span className="mono tnum" style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em" }}>{total != null ? `$${total.toFixed(2)}` : "—"}</span>
         </div>
-      </Field>
-
-      {total != null && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Total <span style={{ color: "var(--text-faint)" }}>({n} × ${plan.price.toFixed(2)})</span></span>
-          <span className="tnum" style={{ fontSize: 17, fontWeight: 600 }}>${total.toFixed(2)}</span>
-        </div>
-      )}
+      </div>
 
       {bulk.error && <div style={{ marginBottom: 12 }}><BuyNotice tone="danger">{bulk.error.message}</BuyNotice></div>}
 
-      <Button full size="lg" icon="layers" onClick={submit} disabled={!!blocker || bulk.isPending}>
-        {bulk.isPending ? "Placing order…" : blocker || `Buy ${n} numbers · $${total.toFixed(2)}`}
+      <Button full size="lg" icon={bulk.isPending ? undefined : "layers"} onClick={submit} disabled={!!blocker || bulk.isPending}>
+        {bulk.isPending ? <><BtnSpinner /> Placing order…</> : blocker || `Buy ${n} numbers · $${total.toFixed(2)}`}
       </Button>
-      <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--text-faint)", textAlign: "center" }}>
-        You're charged now. Numbers appear in your list over the next minute — any we can't get are refunded.
+      <p style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", gap: 6, margin: "11px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--text-faint)", textAlign: "center" }}>
+        <span style={{ display: "flex", flexShrink: 0, marginTop: 2 }}><Icon name="info" size={12} /></span>
+        <span>You're charged now. Numbers appear in your list over the next minute — any we can't get are refunded.</span>
       </p>
     </Modal>
   );
 };
 
+// Phones: a bottom bar carrying the total until the summary card scrolls up into view
+// (CSS-hidden above phone width). It stays mounted and slides out with a transform:
+// mounting/unmounting it on each visibility change replayed its entrance animation,
+// and as the mobile URL bar resized the viewport mid-scroll that read as blinking.
+// The summary counts as reached once it clears the bar, or has scrolled past.
+const MobilePayBar = ({ summaryRef, hidden, caption, amount, action, disabled }) => {
+  const [reached, setReached] = React.useState(false);
+  React.useEffect(() => {
+    const el = summaryRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return undefined;
+    const io = new IntersectionObserver(
+      ([e]) => setReached(e.isIntersecting || e.boundingClientRect.top < 0),
+      { rootMargin: "0px 0px -96px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [summaryRef]);
+  const off = hidden || reached;
+  return (
+    <div className="buy-mobile-bar" data-hidden={off} aria-hidden={off}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{caption}</div>
+        <div className="tnum" style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em" }}>${amount.toFixed(2)}</div>
+      </div>
+      <Button size="md" iconRight="chevR" disabled={disabled} tabIndex={off ? -1 : undefined}
+        onClick={() => summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+        {action}
+      </Button>
+    </div>
+  );
+};
+
 const BuyScreen = ({ setRoute, openNumber }) => {
-  const [type, setType] = React.useState("Private");
+  // Quick buy (dashboard) links here as ?type=&country=&service= — preselect those once,
+  // then pick a random available number instead of always the first
+  const [searchParams, setSearchParams] = useSearchParams();
+  const intent = React.useRef(null);
+  if (intent.current === null) {
+    const iso = (searchParams.get("country") || "").toLowerCase();
+    intent.current = iso ? { iso, serviceId: searchParams.get("service"), random: true } : {};
+  }
+  const [type, setType] = React.useState(() => (searchParams.get("type") === "shared" ? "Shared" : "Private"));
+  // drop the hand-off from the URL so it doesn't linger while the user changes picks
+  React.useEffect(() => {
+    if (searchParams.toString()) setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+  }, []);
   const isPrivate = type === "Private";
   const [countryByType, setCountryByType] = React.useState({});
   const country = countryByType[type] || null;
@@ -277,6 +381,9 @@ const BuyScreen = ({ setRoute, openNumber }) => {
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
   const showToast = (msg, tone = "success") => { clearTimeout(toastTimer.current); setToast({ msg, tone }); toastTimer.current = setTimeout(() => setToast(null), 3200); };
+
+  // phones: the summary sits below every step — see MobilePayBar
+  const summaryRef = React.useRef(null);
 
   const { data: balanceData } = useBalance();
   const balance = balanceData?.amount || 0;
@@ -307,14 +414,27 @@ const BuyScreen = ({ setRoute, openNumber }) => {
   React.useEffect(() => { setCountryQuery(""); setSvcQuery(""); }, [type]);
   React.useEffect(() => { setSvc(null); setPicked(null); setPlanId(null); setPage(0); setUsState(""); }, [type, country?.id]);
 
-  // default country: the first one in the list (UK when offered — see COUNTRY_ORDER in api/buy)
+  // default country: the one handed over by Quick buy, else the first in the list
+  // (UK when offered — see COUNTRY_ORDER in api/buy). Kept idempotent — StrictMode runs
+  // effects twice — and the hand-off is only dropped once a country is actually set.
   React.useEffect(() => {
-    if (country || countryList.length === 0) return;
-    setCountry(countryList[0]);
+    if (country) { intent.current.iso = null; return; }
+    if (countryList.length === 0) return;
+    const wanted = intent.current.iso && countryList.find((c) => c.iso === intent.current.iso);
+    setCountry(wanted || countryList[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setCountry is keyed by type, covered by isPrivate
   }, [countryList, country, isPrivate]);
 
-  // default number: first available
+  // service handed over by Quick buy (shared numbers), once its country's services load
+  React.useEffect(() => {
+    const id = intent.current.serviceId;
+    if (!id || svc || !sharedServices.data?.length) return;
+    intent.current.serviceId = null;
+    const match = sharedServices.data.find((s) => String(s.id) === String(id));
+    if (match) setSvc(match);
+  }, [sharedServices.data, svc]);
+
+  // default number: first available (random when arriving from Quick buy)
   const numberItems = React.useMemo(() => (isPrivate
     ? (privateNumbers.data || [])
     : (sharedNumbers.data || []).map((n) => ({ key: n.id, number: n.number, id: n.id }))
@@ -322,7 +442,15 @@ const BuyScreen = ({ setRoute, openNumber }) => {
   // keep the pick inside the current list — a refetch can drop the number that was picked
   React.useEffect(() => {
     if (numberItems.length === 0) { if (picked) setPicked(null); return; }
-    if (!picked || !numberItems.some((n) => n.key === picked.key)) setPicked(numberItems[0]);
+    if (picked && intent.current.random) { intent.current.random = false; return; }
+    if (!picked || !numberItems.some((n) => n.key === picked.key)) {
+      // the random choice is remembered so a repeated effect run picks the same number
+      if (intent.current.random && !intent.current.randomKey) {
+        intent.current.randomKey = numberItems[Math.floor(Math.random() * numberItems.length)].key;
+      }
+      const random = intent.current.random && numberItems.find((n) => n.key === intent.current.randomKey);
+      setPicked(random || numberItems[0]);
+    }
   }, [numberItems, picked]);
 
   // ---- plans + pricing (same maths as the backend's purchaseNumber) ----
@@ -387,25 +515,22 @@ const BuyScreen = ({ setRoute, openNumber }) => {
 
   return (
     <>
-    <div className="view-enter buy-layout" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
+    <div className="view-enter buy-layout buy-page" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {/* type */}
         <Card style={{ padding: 18 }}>
           <StepTitle n={1}>Number type</StepTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[
-              { k: "Private", d: "A full private number. Works with any service — priced by country.", caps: [{ icon: "msg", label: "SMS" }, { icon: "phone", label: "Voice" }] },
-              { k: "Shared", d: "A number for one specific service. Cheaper, from a shared pool.", caps: [{ icon: "inbox", label: "Receive SMS" }] },
-            ].map((t) => {
+          <div className="buy-type-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {BUY_TYPES.map((t) => {
               const sel = type === t.k;
               return (
-                <button key={t.k} onClick={() => setType(t.k)} style={{ padding: "15px 16px", borderRadius: 12, ...pickCard(sel) }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                <button key={t.k} onClick={() => setType(t.k)} data-sel={sel} style={{ padding: "15px 16px", borderRadius: 12, ...pickCard(sel) }}>
+                  <div className="buy-type-head" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                     <span style={{ fontSize: 14, fontWeight: 600 }}>{t.k}</span>
-                    {sel && <span style={{ marginLeft: "auto" }}><SelDot /></span>}
+                    {sel && <span className="buy-type-dot" style={{ marginLeft: "auto" }}><SelDot /></span>}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, minHeight: 36 }}>{t.d}</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 11 }}>
+                  <div className="buy-type-desc" style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, minHeight: 36 }}>{t.d}</div>
+                  <div className="buy-type-caps" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 11 }}>
                     {t.caps.map((c) => (
                       <span key={c.label} style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 24, padding: "0 9px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: sel ? "var(--surface)" : "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>
                         <span style={{ display: "flex", color: "var(--accent)" }}><Icon name={c.icon} size={12} strokeWidth={2} /></span>{c.label}
@@ -416,6 +541,21 @@ const BuyScreen = ({ setRoute, openNumber }) => {
               );
             })}
           </div>
+          {(() => {
+            const t = BUY_TYPES.find((x) => x.k === type);
+            return (
+              <div className="buy-type-mobile-info">
+                <span>{t.d}</span>
+                <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {t.caps.map((c) => (
+                    <span key={c.label} style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 24, padding: "0 9px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+                      <span style={{ display: "flex", color: "var(--accent)" }}><Icon name={c.icon} size={12} strokeWidth={2} /></span>{c.label}
+                    </span>
+                  ))}
+                </span>
+              </div>
+            );
+          })()}
         </Card>
 
         {/* country */}
@@ -481,12 +621,12 @@ const BuyScreen = ({ setRoute, openNumber }) => {
               <StepTitle n={step.number} sub={isPrivate
                 ? (isUS ? "Pick a state to get its area codes, or leave it on any state." : "These numbers are available right now. The one you pick is yours.")
                 : `Free ${svc.name} numbers in ${country.name}. Digits are partly hidden until the number is yours.`}
-                right={isPrivate && <Button size="sm" variant="soft" icon="layers" onClick={() => setBulkOpen(true)}>Bulk order</Button>}>
+                right={isPrivate && <Button size="sm" variant="soft" icon="layers" className="desktop-only" onClick={() => setBulkOpen(true)}>Bulk order</Button>}>
                 Pick your number
               </StepTitle>
 
               {isUS && (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                <div className="buy-state-row" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                   <label style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500, flexShrink: 0 }}>State</label>
                   <StateSelect value={usState} onChange={setUsState} />
                   {usState && <span className="mono tnum desktop-only" style={{ fontSize: 12, color: "var(--text-faint)", whiteSpace: "nowrap" }}>area code ({(US_STATES.find((s) => s[0] === usState) || [])[2]})</span>}
@@ -499,9 +639,14 @@ const BuyScreen = ({ setRoute, openNumber }) => {
                 : <NumberGrid items={numberItems} pickedKey={picked?.key} onPick={setPicked} />}
 
               {numberItems.length > 0 && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 13, gap: 10 }}>
+                <div className="buy-num-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 13, gap: 10 }}>
                   <span className="tnum" style={{ fontSize: 12, color: "var(--text-faint)" }}>{numberItems.length} available in {where}</span>
-                  <Button variant="subtle" size="sm" icon="refresh" onClick={refreshNumbers} disabled={q.isFetching}>{q.isFetching ? "Searching…" : "Show different numbers"}</Button>
+                  {isPrivate && (
+                    <>
+                      <Button variant="subtle" size="sm" icon="refresh" onClick={refreshNumbers} disabled={q.isFetching}>{q.isFetching ? "Searching…" : "Show different numbers"}</Button>
+                      <Button variant="soft" size="sm" icon="layers" className="mobile-only-flex" onClick={() => setBulkOpen(true)}>Bulk order</Button>
+                    </>
+                  )}
                 </div>
               )}
             </Card>
@@ -540,7 +685,7 @@ const BuyScreen = ({ setRoute, openNumber }) => {
       </div>
 
       {/* summary */}
-      <Card style={{ padding: 18, position: "sticky", top: 82 }}>
+      <Card ref={summaryRef} className="buy-summary" style={{ padding: 18, position: "sticky", top: 82 }}>
         <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Order summary</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px", borderRadius: 12, background: "var(--surface-2)", marginBottom: 16 }}>
           {isPrivate || !svc
@@ -619,7 +764,7 @@ const BuyScreen = ({ setRoute, openNumber }) => {
       {/* processing overlay → then redirect to My Numbers. Portaled to <body> so it sits outside .layout and stays sharp while the page blurs behind it. */}
       {processing && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 250, background: "rgba(8,9,12,0.48)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.2s ease" }}>
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 18, boxShadow: "var(--shadow-pop)", padding: "40px 50px", display: "flex", flexDirection: "column", alignItems: "center", gap: 20, minWidth: 320, animation: "slideUp 0.3s cubic-bezier(0.22,1,0.36,1)" }}>
+          <div className="buy-processing-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 18, boxShadow: "var(--shadow-pop)", padding: "40px 50px", display: "flex", flexDirection: "column", alignItems: "center", gap: 20, minWidth: 320, animation: "slideUp 0.3s cubic-bezier(0.22,1,0.36,1)" }}>
             <div className="spinner" style={{ width: 48, height: 48 }} />
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Processing your purchase…</div>
@@ -638,6 +783,9 @@ const BuyScreen = ({ setRoute, openNumber }) => {
         onClose={() => setBulkOpen(false)}
         onSent={(res) => { setBulkOpen(false); showToast(`Order ${res.order_ref}: buying ${res.quantity} numbers ($${Number(res.total_charged).toFixed(2)} charged) — they'll appear in your list shortly`); }} />
     )}
+    <MobilePayBar summaryRef={summaryRef} hidden={processing} amount={total}
+      caption={`${picked ? picked.number : "Total"}${plan ? ` · ${plan.label}` : ""}`}
+      action={blocker && !insufficient ? blocker : "Review & pay"} disabled={!!blocker && !insufficient} />
     <Toast toast={toast} />
     </>
   );
@@ -734,15 +882,18 @@ const TopUpScreen = () => {
     start.mutate({ gateway: method, amount }, { onError: (err) => setError(err.message || "Could not start the payment") });
   };
 
+  // phones: the summary sits below the gateway list — see MobilePayBar
+  const summaryRef = React.useRef(null);
+
   const limitsOf = (g) => [g.min > 0 && `min $${g.min.toFixed(g.min % 1 ? 2 : 0)}`, g.max > 0 && `max $${g.max.toLocaleString("en-US", { maximumFractionDigits: 2 })}`].filter(Boolean).join(" · ");
 
   return (
     <>
-    <div className="view-enter buy-layout" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
+    <div className="view-enter buy-layout topup-page" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Card style={{ padding: 18 }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Choose amount</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}>
+          <div className="topup-presets" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}>
             {presets.map((p) => (
               <button key={p} onClick={() => setAmountText(String(p))} className="mono tnum" style={{ height: 56, borderRadius: 12, fontSize: 17, fontWeight: 600,
                 background: amount === p ? "var(--accent-soft)" : "var(--surface)", color: amount === p ? "var(--accent)" : "var(--text)", border: `1px solid ${amount === p ? "var(--accent-border)" : "var(--border)"}` }}>${p}</button>
@@ -793,18 +944,18 @@ const TopUpScreen = () => {
                         </div>
                         <span style={{ width: 19, height: 19, borderRadius: 99, border: `2px solid ${sel ? "var(--accent)" : "var(--border-strong)"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2, background: sel ? "var(--accent)" : "transparent" }}>{sel && <Icon name="check" size={12} strokeWidth={3} style={{ color: "#fff" }} />}</span>
                       </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 18px", padding: "12px 15px 0 68px" }}>
+                      <div className="gw-indent gw-meta" style={{ display: "flex", flexWrap: "wrap", gap: "8px 18px", padding: "12px 15px 0 68px" }}>
                         <MetaStat icon="bolt" label="Credit" value={g.instant ? "Automatic" : "Manual review"} />
                         <MetaStat icon="receipt" label="Fee" value={feeLabel(g)} />
                         {limitsOf(g) && <MetaStat icon="info" label="Limits" value={limitsOf(g)} />}
                         {lk.best && <MetaStat icon="check" label="Best for" value={lk.best} />}
                       </div>
                       {sel && desc && (
-                        <div style={{ padding: "12px 15px 0 68px", animation: "fadeIn 0.2s ease both" }}>
+                        <div className="gw-indent" style={{ padding: "12px 15px 0 68px", animation: "fadeIn 0.2s ease both" }}>
                           <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--text-muted)" }}>{desc}</p>
                         </div>
                       )}
-                      <div style={{ padding: lk.tags.length ? "12px 15px 15px 68px" : "0 0 15px" }}>
+                      <div className={lk.tags.length ? "gw-indent" : undefined} style={{ padding: lk.tags.length ? "12px 15px 15px 68px" : "0 0 15px" }}>
                         {lk.tags.length > 0 && (
                           <>
                             <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 8 }}>{lk.tagsTitle || "Accepted via this gateway"}</div>
@@ -825,7 +976,7 @@ const TopUpScreen = () => {
         </Card>
       </div>
 
-      <Card style={{ padding: 18, position: "sticky", top: 82 }}>
+      <Card ref={summaryRef} className="buy-summary" style={{ padding: 18, position: "sticky", top: 82 }}>
         <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Summary</h3>
         {method && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 11, background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: 14 }}>
@@ -865,7 +1016,7 @@ const TopUpScreen = () => {
 
     {redirecting && createPortal(
       <div style={{ position: "fixed", inset: 0, zIndex: 250, background: "rgba(8,9,12,0.48)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.2s ease" }}>
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 18, boxShadow: "var(--shadow-pop)", padding: "40px 50px", display: "flex", flexDirection: "column", alignItems: "center", gap: 20, minWidth: 320, animation: "slideUp 0.3s cubic-bezier(0.22,1,0.36,1)" }}>
+        <div className="buy-processing-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 18, boxShadow: "var(--shadow-pop)", padding: "40px 50px", display: "flex", flexDirection: "column", alignItems: "center", gap: 20, minWidth: 320, animation: "slideUp 0.3s cubic-bezier(0.22,1,0.36,1)" }}>
           <div className="spinner" style={{ width: 48, height: 48 }} />
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Taking you to {method?.name}…</div>
@@ -876,6 +1027,9 @@ const TopUpScreen = () => {
       </div>,
       document.body
     )}
+    <MobilePayBar summaryRef={summaryRef} hidden={redirecting} amount={total}
+      caption={`You pay${method ? ` · ${method.name}` : ""}`}
+      action={invalid && amountText !== "" ? invalid : "Review & pay"} disabled={!!invalid} />
     </>
   );
 };
@@ -959,10 +1113,12 @@ const TransferScreen = () => {
   };
 
   const maxAmount = Math.floor(balance * 100) / 100;
+  // phones: the review card drops below the form — see MobilePayBar
+  const summaryRef = React.useRef(null);
 
   return (
     <>
-    <div className="view-enter buy-layout" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
+    <div className="view-enter buy-layout transfer-page" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Card style={{ padding: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 18 }}>
@@ -972,6 +1128,7 @@ const TransferScreen = () => {
 
           <TransferField label="Recipient" hint="ZEDSMS ID or email">
             <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. 16565956596 or name@example.com"
+              className="transfer-recipient" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="email"
               style={{ ...transferInput, borderColor: isSelf ? "var(--danger)" : "var(--border-strong)" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: isSelf ? "var(--danger)" : "var(--text-faint)", marginTop: 7 }}>
               <Icon name="info" size={13} />
@@ -1016,7 +1173,7 @@ const TransferScreen = () => {
         </Card>
       </div>
 
-      <Card style={{ padding: 18, position: "sticky", top: 82 }}>
+      <Card ref={summaryRef} className="buy-summary" style={{ padding: 18, position: "sticky", top: 82 }}>
         <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Review transfer</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 11, background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: 14 }}>
           <div style={{ width: 32, height: 32, borderRadius: 99, background: to ? colorFor(to) : "var(--surface-3)", color: to ? "#fff" : "var(--text-faint)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 11.5, flexShrink: 0 }}>{to ? initialsOf(to) : <Icon name="transfer" size={15} />}</div>
@@ -1078,6 +1235,9 @@ const TransferScreen = () => {
         </Button>
       </div>
     </Modal>
+    <MobilePayBar summaryRef={summaryRef} hidden={confirming || transfer.isPending} amount={amount}
+      caption={to ? `To ${to}` : "Sending"}
+      action={error || (!to ? "Enter a recipient" : "Review & send")} disabled={!valid} />
     <Toast toast={toast} />
     </>
   );
@@ -1100,19 +1260,54 @@ const TxTab = ({ id, label, filter, onPick }) => (
   <button onClick={() => onPick(id)} style={{ height: 30, padding: "0 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 500,
     background: filter === id ? "var(--surface)" : "transparent", color: filter === id ? "var(--text)" : "var(--text-muted)", boxShadow: filter === id ? "var(--shadow-sm)" : "none", border: filter === id ? "1px solid var(--border)" : "1px solid transparent" }}>{label}</button>
 );
-const PageBtn = ({ children, onClick, disabled, active }) => (
-  <button onClick={onClick} disabled={disabled} style={{ minWidth: 32, height: 32, padding: "0 8px", borderRadius: 8, fontSize: 13, fontWeight: 550,
-    background: active ? "var(--accent)" : "var(--surface)", color: active ? "#fff" : "var(--text)", border: `1px solid ${active ? "transparent" : "var(--border)"}`,
-    display: "inline-flex", alignItems: "center", justifyContent: "center", opacity: disabled ? 0.4 : 1, cursor: disabled ? "not-allowed" : "pointer", pointerEvents: disabled ? "none" : undefined }}>{children}</button>
-);
+// Description in the phone list: two lines, with Show more only when the text is
+// actually cut off — measured, since how much fits depends on the screen width.
+const TxDesc = ({ text }) => {
+  const ref = React.useRef(null);
+  const [open, setOpen] = React.useState(false);
+  const [clamped, setClamped] = React.useState(false);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || open) return undefined;
+    const check = () => setClamped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    // re-measure on rotation / resize
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(check) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [text, open]);
+  return (
+    <>
+      <div ref={ref} style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.45, marginTop: 2, overflowWrap: "anywhere",
+        ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{text}</div>
+      {(clamped || open) && (
+        <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
+          style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 3, padding: "2px 0", fontSize: 12, fontWeight: 550, color: "var(--accent)" }}>
+          {open ? "Show less" : "Show more"}
+          <span style={{ display: "flex", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.16s" }}><Icon name="chevD" size={13} strokeWidth={2} /></span>
+        </button>
+      )}
+    </>
+  );
+};
 
-// A window of page numbers around the current one — the history can run to many pages.
-const pageWindow = (current, last, span = 2) => {
-  const from = Math.max(1, Math.min(current - span, last - span * 2));
-  const to = Math.min(last, Math.max(current + span, span * 2 + 1));
-  const out = [];
-  for (let p = from; p <= to; p++) out.push(p);
-  return out;
+const TxRef = ({ id }) => {
+  const [copied, setCopied] = React.useState(false);
+  const copy = () => copyText(id).then((ok) => {
+    if (!ok) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, minWidth: 0 }}>
+      <span style={{ fontSize: 11.5, color: "var(--text-faint)", flexShrink: 0 }}>Ref</span>
+      <span className="mono" style={{ fontSize: 11.5, color: "var(--text-muted)", minWidth: 0, overflowWrap: "anywhere" }}>{id}</span>
+      <button onClick={copy} title="Copy reference" aria-label="Copy reference"
+        style={{ display: "flex", flexShrink: 0, padding: 3, margin: -3, color: copied ? "var(--success)" : "var(--text-faint)" }}>
+        <Icon name={copied ? "check" : "copy"} size={13} strokeWidth={copied ? 2.3 : 1.8} />
+      </button>
+    </div>
+  );
 };
 
 const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -1147,13 +1342,13 @@ const TransactionsScreen = () => {
   return (
     <div className="view-enter">
       <Card style={{ overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 18px", borderBottom: "1px solid var(--border)", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", gap: 4, padding: 3, background: "var(--surface-2)", borderRadius: 10 }}>
+        <div className="tx-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 18px", borderBottom: "1px solid var(--border)", flexWrap: "wrap", gap: 12 }}>
+          <div className="tx-tabs" style={{ display: "flex", gap: 4, padding: 3, background: "var(--surface-2)", borderRadius: 10 }}>
             <TxTab id="all" label="All" filter={filter} onPick={setFilterReset} />
             <TxTab id="in" label="Incoming" filter={filter} onPick={setFilterReset} />
             <TxTab id="out" label="Outgoing" filter={filter} onPick={setFilterReset} />
           </div>
-          <Button variant="ghost" size="sm" icon="receipt" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</Button>
+          <Button variant="ghost" size="sm" icon="receipt" onClick={exportCsv} disabled={rows.length === 0} aria-label="Export CSV" title="Export CSV"><span className="tx-export-label">Export CSV</span></Button>
         </div>
 
         {isLoading ? (
@@ -1165,7 +1360,35 @@ const TransactionsScreen = () => {
         ) : rows.length === 0 ? (
           <div style={{ padding: 18 }}><BuyNotice icon="search">No {filter === "in" ? "incoming" : "outgoing"} entries on this page.</BuyNotice></div>
         ) : (
-          <div style={{ overflowX: "auto", opacity: isFetching ? 0.6 : 1, transition: "opacity 0.15s" }}>
+          <>
+          {/* phones: the table needs 600px, so the same rows render as a list instead (CSS swaps them) */}
+          <div className="tx-list" style={{ opacity: isFetching ? 0.6 : 1, transition: "opacity 0.15s" }}>
+            {rows.map((t) => {
+              const s = TRANSACTION_STATUS[t.status] || { label: "—", tone: "neutral" };
+              const incoming = t.amount > 0;
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 16px", borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 10, background: incoming ? "var(--success-soft)" : "var(--surface-2)", color: incoming ? "var(--success)" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon name={incoming ? "arrowDown" : "arrowUp"} size={15} strokeWidth={2} />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.action}</span>
+                      <span className="mono tnum" style={{ fontSize: 14, fontWeight: 600, color: incoming ? "var(--success)" : "var(--text)", whiteSpace: "nowrap", flexShrink: 0 }}>{incoming ? "+" : "−"}${Math.abs(t.amount).toFixed(2)}</span>
+                    </div>
+                    {t.desc && <TxDesc text={t.desc} />}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 6 }}>
+                      <span className="tnum" style={{ fontSize: 11.5, color: "var(--text-faint)", whiteSpace: "nowrap" }}>{txDate(t.date)} · {txTime(t.date)}</span>
+                      <Badge tone={s.tone}>{s.label}</Badge>
+                    </div>
+                    {/* the full reference (e.g. ZS…) on its own line — it's what support asks for */}
+                    {t.trxId && <TxRef id={t.trxId} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="tx-table" style={{ overflowX: "auto", opacity: isFetching ? 0.6 : 1, transition: "opacity 0.15s" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -1204,23 +1427,16 @@ const TransactionsScreen = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {allRows.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", borderTop: "1px solid var(--border)", flexWrap: "wrap", gap: 12 }}>
+          <div className="tx-foot" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", borderTop: "1px solid var(--border)", flexWrap: "wrap", gap: 12 }}>
             <span className="tnum" style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
               Showing <span style={{ fontWeight: 600, color: "var(--text)" }}>{rangeStart}–{rangeEnd}</span> of {total}
               {filter !== "all" && <span style={{ color: "var(--text-faint)" }}> · {rows.length} {filter === "in" ? "incoming" : "outgoing"} on this page</span>}
             </span>
-            {lastPage > 1 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <PageBtn onClick={() => setPage(curPage - 1)} disabled={curPage <= 1}><Icon name="chevR" size={15} style={{ transform: "rotate(180deg)" }} /></PageBtn>
-                {pageWindow(curPage, lastPage).map((p) => (
-                  <PageBtn key={p} onClick={() => setPage(p)} active={p === curPage}>{p}</PageBtn>
-                ))}
-                <PageBtn onClick={() => setPage(curPage + 1)} disabled={curPage >= lastPage}><Icon name="chevR" size={15} /></PageBtn>
-              </div>
-            )}
+            <Pagination page={curPage} lastPage={lastPage} onChange={setPage} />
           </div>
         )}
       </Card>
@@ -1247,12 +1463,36 @@ const PasswordField = ({ value, defaultValue, onChange, placeholder, invalid }) 
   );
 };
 
-const SettingRow = ({ title, sub, children }) => (
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "15px 0", borderBottom: "1px solid var(--border)" }}>
-    <div><div style={{ fontSize: 13.5, fontWeight: 500 }}>{title}</div><div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{sub}</div></div>
-    {children}
+// Profile detail row: label · value (+ hint) · optional action. Read-only values are
+// shown as text rather than disabled inputs, which read as broken form fields.
+const ProfileRow = ({ label, hint, action, last, children }) => (
+  <div className="profile-row" style={{ display: "grid", gridTemplateColumns: "130px minmax(0, 1fr) auto", alignItems: "center", gap: "4px 16px", padding: "14px 0", borderTop: "1px solid var(--border)", ...(last ? { paddingBottom: 2 } : {}) }}>
+    <div style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>{label}</div>
+    <div style={{ minWidth: 0 }}>
+      {children}
+      {hint && <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 3, lineHeight: 1.45 }}>{hint}</div>}
+    </div>
+    {action || <span />}
   </div>
 );
+
+// Security card header: icon tile · title (+ badge) · description · optional action
+const SecHead = ({ icon, active, title, badge, sub, right }) => (
+  <div className="sec-head" style={{ display: "flex", alignItems: "flex-start", gap: 13, marginBottom: 16 }}>
+    <div style={{ width: 38, height: 38, borderRadius: 11, background: active ? "var(--success-soft)" : "var(--surface-2)", color: active ? "var(--success)" : "var(--text-muted)", border: active ? "none" : "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s" }}><Icon name={icon} size={19} /></div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: "-0.01em" }}>{title}</h3>
+        {badge}
+      </div>
+      <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.5 }}>{sub}</p>
+    </div>
+    {right}
+  </div>
+);
+const BtnSpinner = () => <span style={{ width: 13, height: 13, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />;
+// session names come from the user agent ("iPhone · Safari", "Windows · Chrome", …)
+const MOBILE_DEVICE = /iphone|ipad|android|mobile|phone/i;
 
 const pwScore = (p) => { if (!p) return 0; let s = 0; if (p.length >= 8) s++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++; if (/[0-9]/.test(p)) s++; if (/[^A-Za-z0-9]/.test(p)) s++; return Math.min(s, 4); };
 const PW_LEVELS = [{ l: "Too short", c: "var(--danger)" }, { l: "Weak", c: "var(--danger)" }, { l: "Fair", c: "var(--warning)" }, { l: "Good", c: "var(--accent)" }, { l: "Strong", c: "var(--success)" }];
@@ -1269,9 +1509,15 @@ const sessionWhen = (iso) => {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const SETTINGS_TABS = [{ id: "profile", label: "Profile" }, { id: "security", label: "Security" }, { id: "appearance", label: "Appearance" }, { id: "notifications", label: "Notifications" }];
+
 const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
-  const [tab, setTab] = React.useState("profile");
-  const tabs = [{ id: "profile", label: "Profile" }, { id: "security", label: "Security" }, { id: "appearance", label: "Appearance" }, { id: "notifications", label: "Notifications" }];
+  // the tab lives in the URL (?tab=notifications) so a reload — e.g. on returning from
+  // the Telegram app mid-setup — reopens the same tab
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabs = SETTINGS_TABS;
+  const tab = tabs.some((t) => t.id === searchParams.get("tab")) ? searchParams.get("tab") : "profile";
+  const setTab = (id) => setSearchParams(id === "profile" ? {} : { tab: id }, { replace: true });
 
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
@@ -1379,8 +1625,9 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
     if (after === "enable") signOutAfter("Two-factor enabled — sign in again to continue");
   };
   const copyRecoveryCodes = () => {
-    navigator.clipboard?.writeText((recoveryCodes || []).join("\n"));
-    showToast("Recovery codes copied");
+    copyText((recoveryCodes || []).join("\n")).then((ok) => (ok
+      ? showToast("Recovery codes copied")
+      : showToast("Couldn't copy — use Download instead", "danger")));
   };
   const downloadRecoveryCodes = () => {
     const body = `ZEDSMS recovery codes for ${email}\nGenerated ${new Date().toLocaleString()}\n\n${(recoveryCodes || []).join("\n")}\n\nEach code works once. Keep them somewhere safe and private.\n`;
@@ -1411,78 +1658,86 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
 
   const email = account?.email || "";
   const zedId = account?.zedsms_id || account?.zedId || account?.id || "—";
+  const hasZedId = zedId !== "—";
+  const [idCopied, setIdCopied] = React.useState(false);
+  const copyId = () => copyText(zedId).then((ok) => {
+    if (!ok) { showToast("Couldn't copy — press and hold the ID instead", "danger"); return; }
+    setIdCopied(true);
+    setTimeout(() => setIdCopied(false), 1600);
+  });
 
   return (
     <>
     <div className="view-enter settings-layout" style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20, alignItems: "start" }}>
       <div className="settings-tabs" style={{ display: "flex", flexDirection: "column", gap: 3, position: "sticky", top: 82 }}>
         {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ display: "flex", alignItems: "center", padding: "9px 13px", borderRadius: 10, fontSize: 13.5, fontWeight: tab === t.id ? 550 : 450, textAlign: "left",
+          <button key={t.id} onClick={() => setTab(t.id)} data-active={tab === t.id} style={{ display: "flex", alignItems: "center", padding: "9px 13px", borderRadius: 10, fontSize: 13.5, fontWeight: tab === t.id ? 550 : 450, textAlign: "left",
             background: tab === t.id ? "var(--accent-soft)" : "transparent", color: tab === t.id ? "var(--accent)" : "var(--text-muted)" }}>{t.label}</button>
         ))}
       </div>
 
-      <div style={{ maxWidth: 560 }}>
+      <div className="settings-body" style={{ maxWidth: 560 }}>
         {tab === "profile" && (
           <>
           <Card style={{ padding: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 15, marginBottom: 22 }}>
-              <div style={{ width: 60, height: 60, borderRadius: 99, background: "var(--accent)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 24 }}>{(email[0] || "?").toUpperCase()}</div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 600, wordBreak: "break-all" }}>{email || (profileLoading ? "Loading…" : "—")}</div>
-                <div className="mono" style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 1 }}>ID {zedId}</div>
+            {/* identity */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 99, background: "var(--accent)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 19, flexShrink: 0, boxShadow: "0 0 0 4px var(--accent-soft)" }}>{(email[0] || "?").toUpperCase()}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email || (profileLoading ? "Loading…" : "—")}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, fontSize: 12, color: "var(--text-muted)" }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 99, background: loginMethod.color, flexShrink: 0 }} />
+                  Signed in with {loginMethod.label}
+                </div>
               </div>
             </div>
 
-            <Field label="Email">
-              <div style={{ display: "flex", gap: 10 }}>
-                <input value={email} readOnly type="email" style={{ ...settingsInput, color: "var(--text-muted)", cursor: "default" }} />
-                <Button variant="subtle" onClick={() => { setEmailFlow("request"); setNewEmail(""); setEmailErr(""); }} style={{ flexShrink: 0, height: 44 }}>Change</Button>
-              </div>
-              {account?.pending_email && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--warning)", marginTop: 7 }}>
+            <ProfileRow label="Email"
+              action={<Button variant="subtle" size="sm" onClick={() => { setEmailFlow("request"); setNewEmail(""); setEmailErr(""); }}>Change</Button>}
+              hint={account?.pending_email && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", color: "var(--warning)" }}>
                   <Icon name="info" size={13} /> Pending change to {account.pending_email}
                   <button onClick={() => { setEmailFlow("verify"); setEmailOtp(""); setEmailErr(""); }} style={{ color: "var(--accent)", fontWeight: 600 }}>Enter code</button>
-                </div>
-              )}
-            </Field>
+                </span>
+              )}>
+              <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email || "—"}</div>
+            </ProfileRow>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Field label="ZEDSMS ID"><input value={zedId} readOnly className="mono" style={{ ...settingsInput, color: "var(--text-muted)", cursor: "default" }} /></Field>
-              <Field label="Signed in with">
-                <div style={{ display: "flex", alignItems: "center", gap: 9, height: 44, padding: "0 14px", borderRadius: 11, border: "1px solid var(--border)", background: "var(--surface-2)" }}>
-                  <span style={{ width: 9, height: 9, borderRadius: 99, background: loginMethod.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 13.5, fontWeight: 500 }}>{loginMethod.label}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 600, color: "var(--success)" }}>Connected</span>
-                </div>
-              </Field>
-            </div>
+            <ProfileRow label="ZEDSMS ID" hint="Permanent — share it to receive balance transfers."
+              action={
+                <Button variant="subtle" size="sm" icon={idCopied ? "check" : "copy"} onClick={copyId} disabled={!hasZedId} aria-label="Copy ZEDSMS ID">
+                  {idCopied ? "Copied" : "Copy"}
+                </Button>
+              }>
+              <div className="mono tnum" style={{ fontSize: 14, fontWeight: 600, letterSpacing: "0.01em", overflowWrap: "anywhere" }}>{zedId}</div>
+            </ProfileRow>
 
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 9, marginBottom: 18, padding: "11px 13px", borderRadius: 11, background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-              <span style={{ display: "flex", color: "var(--text-faint)", marginTop: 1, flexShrink: 0 }}><Icon name="info" size={15} /></span>
-              <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>Your email and ZEDSMS ID identify you. Your ID is permanent and used to receive balance transfers.</span>
-            </div>
+            <ProfileRow label="Sign-in method" last>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ width: 9, height: 9, borderRadius: 99, background: loginMethod.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 13.5, fontWeight: 500 }}>{loginMethod.label}</span>
+                <Badge tone="success" dot>Connected</Badge>
+              </div>
+            </ProfileRow>
           </Card>
 
           <Card style={{ padding: 22, marginTop: 18, borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+            <div className="settings-danger-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
               <div>
                 <h3 style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 600, color: "var(--danger)" }}>Delete account</h3>
                 <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-muted)" }}>Permanently deletes your account, numbers and remaining balance. This can't be undone.</p>
               </div>
-              <Button variant="danger" icon="trash" onClick={() => { setDeleteOpen(true); setDeletePwd(""); setDeleteErr(""); }} style={{ flexShrink: 0 }}>Delete</Button>
+              <Button variant="danger" icon="trash" onClick={() => { setDeleteOpen(true); setDeletePwd(""); setDeleteErr(""); }}>Delete</Button>
             </div>
           </Card>
           </>
         )}
 
         {tab === "security" && (
-          <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          {/* ---- password ---- */}
           <Card style={{ padding: 22 }}>
-            <div style={{ marginBottom: 8 }}>
-              <h3 style={{ margin: "0 0 3px", fontSize: 16, fontWeight: 600 }}>Password</h3>
-              <p style={{ margin: "0 0 16px", fontSize: 12.5, color: "var(--text-muted)" }}>Use at least 8 characters. You'll be signed out on all devices afterwards.</p>
-            </div>
+            <SecHead icon="lock" title="Password" sub="Use at least 8 characters. You'll be signed out on all devices afterwards." />
             <Field label="Current password"><PasswordField value={curPwd} onChange={(e) => setCurPwd(e.target.value)} placeholder="Your current password" /></Field>
             <Field label="New password">
               <PasswordField value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="At least 8 characters" />
@@ -1493,7 +1748,7 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
                     <div style={{ display: "flex", gap: 5 }}>
                       {[0, 1, 2, 3].map((i) => <div key={i} style={{ height: 4, flex: 1, borderRadius: 99, background: i < score ? lvl.c : "var(--surface-3)", transition: "background 0.2s" }} />)}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 11.5, color: lvl.c, fontWeight: 500 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 11.5, color: lvl.c, fontWeight: 500, flexWrap: "wrap" }}>
                       <span>{lvl.l}</span>
                       <span style={{ color: "var(--text-faint)", fontWeight: 400 }}>· mix upper/lowercase, numbers &amp; symbols</span>
                     </div>
@@ -1510,71 +1765,66 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
                 </div>
               )}
             </Field>
-            <div style={{ marginTop: 6, marginBottom: 22 }}>
+            <div className="sec-actions" style={{ display: "flex", marginTop: 4 }}>
               <Button onClick={submitPassword} disabled={!(curPwd && newPwd.length >= 8 && newPwd === confirmPwd) || changePwd.isPending}>
-                {changePwd.isPending ? (
-                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
-                    Updating…
-                  </span>
-                ) : (
-                  "Update password"
-                )}
+                {changePwd.isPending ? <><BtnSpinner /> Updating…</> : "Update password"}
               </Button>
             </div>
+          </Card>
 
-            <div style={{ height: 1, background: "var(--border)", margin: "0 0 20px" }} />
-
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 13 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 11, background: has2FA ? "var(--success-soft)" : "var(--surface-2)", color: has2FA ? "var(--success)" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s" }}><Icon name="shield" size={20} /></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
-                  <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 600 }}>Two-factor authentication</h3>
-                  <Badge tone={has2FA ? "success" : "neutral"} dot>{has2FA ? "On" : "Off"}</Badge>
-                </div>
-                <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.5 }}>Add a second step at sign-in using an authenticator app like Google Authenticator, Authy or 1Password. Even if your password leaks, your account stays protected.</p>
-              </div>
-            </div>
-            <div style={{ marginTop: 14, marginLeft: 53, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {/* ---- two-factor ---- */}
+          <Card style={{ padding: 22 }}>
+            <SecHead icon="shield" active={has2FA} title="Two-factor authentication"
+              badge={<Badge tone={has2FA ? "success" : "neutral"} dot>{has2FA ? "On" : "Off"}</Badge>}
+              sub="Add a second step at sign-in with an authenticator app like Google Authenticator, Authy or 1Password. Even if your password leaks, your account stays protected." />
+            <div className="settings-indent settings-tfa-actions" style={{ marginLeft: 51, display: "flex", gap: 10, flexWrap: "wrap" }}>
               {has2FA
                 ? <>
+                    <Button variant="subtle" size="md" icon="refresh" onClick={() => { setRegenOpen(true); setRegenPwd(""); setRegenErr(""); }}>Regenerate recovery codes</Button>
                     <Button variant="danger" size="md" onClick={openDisable}>Disable</Button>
-                    <Button variant="subtle" size="md" onClick={() => { setRegenOpen(true); setRegenPwd(""); setRegenErr(""); }}>Regenerate recovery codes</Button>
                   </>
                 : <Button variant="primary" size="md" icon="shield" onClick={openEnable}>Enable two-factor</Button>}
             </div>
             {has2FA && (
-              <p style={{ margin: "10px 0 0 53px", fontSize: 11.5, color: "var(--text-faint)", lineHeight: 1.5 }}>
+              <p className="settings-indent" style={{ margin: "10px 0 0 51px", fontSize: 11.5, color: "var(--text-faint)", lineHeight: 1.5 }}>
                 Recovery codes let you sign in if you lose your phone. Each one works once.
               </p>
             )}
           </Card>
 
-          <Card style={{ padding: 22, marginTop: 18 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 6 }}>
-              <div>
-                <h3 style={{ margin: "0 0 3px", fontSize: 16, fontWeight: 600 }}>Signed-in devices</h3>
-                <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-muted)" }}>Every device with an active session. Sign out anything you don't recognise.</p>
-              </div>
-              <Button variant="subtle" size="sm" disabled={revokeOthers.isPending || (sessions.data || []).length < 2}
-                onClick={() => revokeOthers.mutate(undefined, { onSuccess: (m) => showToast(m || "Other sessions signed out"), onError: (e) => showToast(e.message, "danger") })}>
-                {revokeOthers.isPending ? "Signing out…" : "Sign out others"}
-              </Button>
-            </div>
+          {/* ---- sessions ---- */}
+          <Card style={{ padding: 22 }}>
+            <SecHead icon="monitor" title="Signed-in devices" sub="Every device with an active session. Sign out anything you don't recognise."
+              right={
+                <Button variant="subtle" size="sm" disabled={revokeOthers.isPending || (sessions.data || []).length < 2}
+                  onClick={() => revokeOthers.mutate(undefined, { onSuccess: (m) => showToast(m || "Other sessions signed out"), onError: (e) => showToast(e.message, "danger") })}>
+                  {revokeOthers.isPending ? <><BtnSpinner /> Signing out…</> : "Sign out others"}
+                </Button>
+              } />
             {sessions.isLoading ? <BuyNotice tone="accent">Loading sessions…</BuyNotice>
               : sessions.error ? <BuyNotice tone="danger" action={<Button size="sm" variant="subtle" onClick={() => sessions.refetch()}>Retry</Button>}>{sessions.error.message}</BuyNotice>
               : (sessions.data || []).length === 0 ? <BuyNotice>No active sessions found.</BuyNotice>
-              : (sessions.data || []).map((s) => (
-                <SettingRow key={s.id} title={s.name} sub={`Last used ${sessionWhen(s.lastUsed)} · signed in ${sessionWhen(s.createdAt)}`}>
-                  <Button variant="subtle" size="sm" disabled={revoke.isPending}
-                    onClick={() => revoke.mutate(s.id, { onSuccess: (m) => showToast(m || "Session signed out"), onError: (e) => showToast(e.message, "danger") })}>
-                    Sign out
-                  </Button>
-                </SettingRow>
-              ))}
+              : (sessions.data || []).map((s) => {
+                const signingOut = revoke.isPending && revoke.variables === s.id;
+                return (
+                  <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderTop: "1px solid var(--border)", opacity: signingOut ? 0.6 : 1, transition: "opacity 0.15s" }}>
+                    <span style={{ width: 34, height: 34, borderRadius: 10, background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}>
+                      <Icon name={MOBILE_DEVICE.test(s.name || "") ? "phone" : "monitor"} size={16} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 550, overflowWrap: "anywhere" }}>{s.name}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>Last used {sessionWhen(s.lastUsed)} · signed in {sessionWhen(s.createdAt)}</div>
+                    </div>
+                    <Button variant="subtle" size="sm" disabled={revoke.isPending}
+                      onClick={() => revoke.mutate(s.id, { onSuccess: (m) => showToast(m || "Session signed out"), onError: (e) => showToast(e.message, "danger") })}>
+                      {signingOut ? <><BtnSpinner /> Signing out…</> : "Sign out"}
+                    </Button>
+                  </div>
+                );
+              })}
             <p style={{ margin: "12px 0 0", fontSize: 11.5, color: "var(--text-faint)", lineHeight: 1.5 }}>Signing out the session you're using now will end this one too.</p>
           </Card>
-          </>
+          </div>
         )}
 
         {tab === "appearance" && (
@@ -1631,7 +1881,7 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
 
     <Modal open={emailFlow === "verify"} onClose={() => setEmailFlow(null)} width={440} title="Confirm your new email" subtitle="Enter the 6-digit code we emailed you — it expires in 10 minutes">
       <input value={emailOtp} onChange={(e) => { setEmailOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setEmailErr(""); }} inputMode="numeric" placeholder="000000" autoFocus
-        className="mono tnum" style={{ ...settingsInput, height: 56, fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", borderColor: emailErr ? "var(--danger)" : "var(--border-strong)" }} />
+        className="mono tnum otp-input" style={{ ...settingsInput, height: 56, fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", borderColor: emailErr ? "var(--danger)" : "var(--border-strong)" }} />
       {emailErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: 9 }}><Icon name="info" size={13} /> {emailErr}</div>}
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <Button variant="subtle" full onClick={() => setEmailFlow("request")} disabled={verifyEmail.isPending}>Back</Button>
@@ -1663,7 +1913,7 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
           ) : twofa.error || tfaErr ? (
             <BuyNotice tone="danger">{tfaErr || twofa.error?.message}</BuyNotice>
           ) : (
-            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            <div className="tfa-setup" style={{ display: "flex", gap: 16, alignItems: "center" }}>
               {/* the backend renders the QR itself and returns inline SVG */}
               <div style={{ width: 156, height: 156, padding: 9, borderRadius: 12, background: "#fff", border: "1px solid var(--border-strong)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
                 dangerouslySetInnerHTML={{ __html: twofa.data?.qrSvg || "" }} />
@@ -1685,7 +1935,7 @@ const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
         <div>
           <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>Enter the 6-digit code currently shown in your authenticator app. You'll be signed out and asked for it next time you sign in.</p>
           <input value={tfaCode} onChange={(e) => { setTfaCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setTfaErr(""); }} inputMode="numeric" placeholder="000000" autoFocus
-            className="mono tnum" style={{ ...settingsInput, height: 56, fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", borderColor: tfaErr ? "var(--danger)" : "var(--border-strong)" }} />
+            className="mono tnum otp-input" style={{ ...settingsInput, height: 56, fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", borderColor: tfaErr ? "var(--danger)" : "var(--border-strong)" }} />
           {tfaErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: 9 }}><Icon name="info" size={13} /> {tfaErr}</div>}
           <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
             <Button variant="subtle" full onClick={() => { setTfaStep(0); setTfaErr(""); }} disabled={enable2faM.isPending}>Back</Button>

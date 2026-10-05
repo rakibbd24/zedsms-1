@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import Footer from "../components/Footer";
@@ -14,6 +14,151 @@ const pwChecks = (p: string) => ({
 });
 const pwStrongEnough = (p: string) => Object.values(pwChecks(p)).every(Boolean);
 
+const MAX_ATTEMPTS = 3;
+const LOCK_MS = 30_000;
+
+// ---------- icons (stroke SVGs — emoji rendered differently on every phone) ----------
+type IconProps = { className?: string };
+const svg = (path: React.ReactNode) => ({ className = "size-[18px]" }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{path}</svg>
+);
+const MailIcon = svg(<><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m4 7 8 6 8-6" /></>);
+const LockIcon = svg(<><rect x="4.5" y="10.5" width="15" height="10" rx="2.5" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" /></>);
+const EyeIcon = svg(<><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></>);
+const EyeOffIcon = svg(<><path d="M10.6 5.6A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.7 3.4M6.6 6.6C3.9 8.3 2.5 12 2.5 12S6 18.5 12 18.5c1.9 0 3.5-.6 4.9-1.5" /><path d="m3 3 18 18M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>);
+const AlertIcon = svg(<><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></>);
+const ClockIcon = svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>);
+const CheckIcon = svg(<path d="m5 12.5 4.5 4.5L19 7.5" />);
+const DotIcon = svg(<circle cx="12" cy="12" r="3.5" />);
+
+const Spinner = () => (
+  <svg className="size-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+  </svg>
+);
+
+// ---------- shared pieces ----------
+const Banner = ({ tone, icon, children }: { tone: "danger" | "warning"; icon: React.ReactNode; children: React.ReactNode }) => (
+  <div role="alert" className={`mb-5 px-3.5 py-3 rounded-xl text-sm flex items-start gap-2.5 ${tone === "danger" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800"}`}>
+    <span className="shrink-0 mt-px">{icon}</span>
+    <div className="leading-snug">{children}</div>
+  </div>
+);
+
+const FieldError = ({ id, children }: { id: string; children?: string }) =>
+  children ? (
+    <p id={id} className="text-red-600 text-xs mt-1.5 flex items-center gap-1.5">
+      <AlertIcon className="size-3.5 shrink-0" /> {children}
+    </p>
+  ) : null;
+
+type AuthInputProps = {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoComplete: string;
+  error?: string;
+  disabled?: boolean;
+  reveal?: { shown: boolean; toggle: () => void };
+};
+
+// Label tied to its input, icon inside, optional show/hide toggle. 16px text on phones
+// (below that iOS zooms in on focus), 14px from sm up.
+const AuthInput = ({ id, label, icon, type, value, onChange, placeholder, autoComplete, error, disabled, reveal }: AuthInputProps) => (
+  <div>
+    <label htmlFor={id} className="block text-xs font-semibold text-[#6B6F76] mb-2">{label}</label>
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA1A9] flex">{icon}</span>
+      <input
+        id={id}
+        type={reveal ? (reveal.shown ? "text" : "password") : type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        autoCapitalize={type === "email" ? "none" : undefined}
+        spellCheck={type === "email" ? false : undefined}
+        disabled={disabled}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={`w-full h-11 pl-11 ${reveal ? "pr-11" : "pr-4"} rounded-[11px] border text-base sm:text-sm text-[#0f1013] placeholder:text-[#9CA1A9] outline-none transition-colors disabled:opacity-60 ${
+          error ? "border-red-400 bg-red-50/60 focus:ring-2 focus:ring-red-100" : "border-[#E1E2E7] bg-white focus:border-[#2155f5] focus:ring-2 focus:ring-[#eef1fb]"
+        }`}
+      />
+      {reveal && (
+        <button
+          type="button"
+          onClick={reveal.toggle}
+          aria-label={reveal.shown ? "Hide password" : "Show password"}
+          aria-pressed={reveal.shown}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 size-8 rounded-lg flex items-center justify-center text-[#9CA1A9] hover:text-[#6B6F76] hover:bg-[#f5f6f8] transition-colors"
+        >
+          {reveal.shown ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      )}
+    </div>
+    <FieldError id={`${id}-error`}>{error}</FieldError>
+  </div>
+);
+
+const AuthTabs = ({ active }: { active: "signin" | "signup" }) => {
+  const base = "flex-1 py-2.5 px-4 rounded-lg font-display font-medium text-sm text-center transition-colors";
+  const on = `${base} bg-white text-[#0f1013] shadow-sm`;
+  const off = `${base} text-[#6B6F76] hover:text-[#0f1013]`;
+  return (
+    <div className="flex gap-1 mb-7 bg-[#f4f5f7] p-1 rounded-xl">
+      <Link to="/auth/signin" replace className={active === "signin" ? on : off} aria-current={active === "signin" ? "page" : undefined}>Sign in</Link>
+      <Link to="/auth/signup" replace className={active === "signup" ? on : off} aria-current={active === "signup" ? "page" : undefined}>Sign up</Link>
+    </div>
+  );
+};
+
+const SubmitButton = ({ loading, disabled, children, loadingText }: { loading: boolean; disabled?: boolean; children: React.ReactNode; loadingText: string }) => (
+  <button
+    type="submit"
+    disabled={disabled || loading}
+    className="w-full h-11 bg-[#2155f5] hover:bg-[#1a46d1] disabled:opacity-50 disabled:cursor-not-allowed text-white font-display font-medium rounded-full transition-colors flex items-center justify-center gap-2"
+  >
+    {loading ? <><Spinner /> {loadingText}</> : children}
+  </button>
+);
+
+const legal = "text-[#6B6F76] underline underline-offset-2 hover:text-[#2155f5]";
+
+// Page frame: the Navbar floats over the page (absolute), so phones — which hide the
+// logo that used to fill this gap — need top padding to clear it.
+const AuthShell = ({ children, footnote }: { children: React.ReactNode; footnote?: boolean }) => (
+  <div className="min-h-screen bg-[#f9f9fa] flex flex-col">
+    <Navbar />
+    <div className="flex-1 flex items-center justify-center px-4 pt-24 pb-12 md:py-12">
+      <div className="w-full max-w-[420px]">
+        {/* Logo — phones already show it in the header right above, so only from md up */}
+        <div className="hidden md:flex items-center justify-center gap-3 mb-8">
+          <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="#2155f5" />
+            <path d="M16 8C11.58 8 8 11.58 8 16s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" fill="white" />
+          </svg>
+          <span className="font-display font-semibold text-2xl text-[#0f1013]">ZEDSMS</span>
+        </div>
+
+        <div className="bg-white rounded-[20px] border border-[#e1e2e9] p-6 sm:p-8">{children}</div>
+
+        {footnote && (
+          <p className="text-center text-xs text-[#9CA1A9] mt-6 leading-relaxed">
+            By continuing you agree to ZEDSMS's <Link to="/terms-of-service" className={legal}>Terms of Service</Link> and <Link to="/privacy-policy" className={legal}>Privacy Policy</Link>.
+          </p>
+        )}
+      </div>
+    </div>
+    <Footer />
+  </div>
+);
+
 // ============ SIGN IN PAGE ============
 function SignInPage() {
   const navigate = useNavigate();
@@ -26,9 +171,24 @@ function SignInPage() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [attempts, setAttempts] = React.useState(0);
-  const locked = attempts >= 3;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // after MAX_ATTEMPTS failures the form locks for LOCK_MS, then unlocks by itself
+  // (it used to say "try again in 30 seconds" but stayed locked until a reload)
+  const [lockedUntil, setLockedUntil] = React.useState<number | null>(null);
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    if (!lockedUntil) return undefined;
+    const t = setInterval(() => {
+      const n = Date.now();
+      setNow(n);
+      if (n >= lockedUntil) { setLockedUntil(null); setAttempts(0); setErrors({}); }
+    }, 500);
+    return () => clearInterval(t);
+  }, [lockedUntil]);
+  const locked = lockedUntil !== null;
+  const secondsLeft = locked ? Math.max(1, Math.ceil((lockedUntil - now) / 1000)) : 0;
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (locked || isLoginLoading) return;
 
@@ -40,180 +200,76 @@ function SignInPage() {
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
 
-    try {
-      await new Promise<void>((resolve, reject) => {
-        login(
-          { login: email, password },
-          {
-            onSuccess: (result: any) => {
-              // 2FA account: no token yet — finish on the OTP screen, carrying the
-              // credentials in router state (verifyOtp re-checks them) and never storing them
-              if (result?.needsOtp) {
-                // carry only the short-lived challenge, never the password
-                navigate("/auth/verify-otp", { state: { mfaToken: result.mfaToken, email }, replace: true });
-              } else {
-                setTimeout(() => navigate("/app/home"), 300);
-              }
-              resolve();
-            },
-            onError: (error: any) => {
-              setAttempts((a) => a + 1);
-              const remaining = 3 - attempts - 1;
-              if (remaining > 0) {
-                setErrors({ submit: `Incorrect email or password. ${remaining} attempt${remaining === 1 ? "" : "s"} left.` });
-              } else {
-                setErrors({ submit: "Too many attempts. Try again later." });
-              }
-              reject(error);
-            },
+    login(
+      { login: email.trim(), password },
+      {
+        onSuccess: (result: any) => {
+          // 2FA account: no token yet — finish on the OTP screen, carrying only the
+          // short-lived challenge in router state, never the password
+          if (result?.needsOtp) {
+            navigate("/auth/verify-otp", { state: { mfaToken: result.mfaToken, email }, replace: true });
+          } else {
+            setTimeout(() => navigate("/app/home"), 300);
           }
-        );
-      });
-    } catch (err) {
-      // Error handled in onError callback
-    }
+        },
+        onError: () => {
+          const next = attempts + 1;
+          setAttempts(next);
+          if (next >= MAX_ATTEMPTS) {
+            setErrors({});
+            setNow(Date.now());
+            setLockedUntil(Date.now() + LOCK_MS);
+          } else {
+            const remaining = MAX_ATTEMPTS - next;
+            setErrors({ submit: `Incorrect email or password. ${remaining} attempt${remaining === 1 ? "" : "s"} left.` });
+          }
+        },
+      }
+    );
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9fa] flex flex-col">
-      <Navbar />
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[420px]">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="8" fill="#2155f5" />
-            <path d="M16 8C11.58 8 8 11.58 8 16s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" fill="white" />
-          </svg>
-          <span className="font-display font-semibold text-2xl text-[#0f1013]">ZEDSMS</span>
+    <AuthShell footnote>
+      <AuthTabs active="signin" />
+
+      <h1 className="font-display font-semibold text-2xl text-[#0f1013] mb-1">Welcome back</h1>
+      <p className="text-[#6B6F76] text-sm mb-6">Sign in to manage your numbers and messages.</p>
+
+      {locked && <Banner tone="danger" icon={<ClockIcon />}>Too many failed attempts. Try again in {secondsLeft}s.</Banner>}
+      {!locked && notice && !errors.submit && <Banner tone="warning" icon={<ClockIcon />}>{notice}</Banner>}
+      {!locked && errors.submit && <Banner tone="danger" icon={<AlertIcon />}>{errors.submit}</Banner>}
+
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <AuthInput id="signin-email" label="Email" icon={<MailIcon />} type="email" autoComplete="email"
+          value={email} onChange={(v) => { setEmail(v); setErrors((er) => ({ ...er, email: "" })); }}
+          placeholder="you@example.com" error={errors.email} disabled={locked} />
+        <AuthInput id="signin-password" label="Password" icon={<LockIcon />} type="password" autoComplete="current-password"
+          value={password} onChange={(v) => { setPassword(v); setErrors((er) => ({ ...er, password: "" })); }}
+          placeholder="Your password" error={errors.password} disabled={locked}
+          reveal={{ shown: showPassword, toggle: () => setShowPassword((s) => !s) }} />
+
+        <div className="pt-2">
+          <SubmitButton loading={isLoginLoading} disabled={locked} loadingText="Signing in…">Sign in</SubmitButton>
         </div>
+      </form>
 
-        {/* Card */}
-        <div className="bg-white rounded-[20px] border border-[#e1e2e9] p-8">
-          {/* Tabs */}
-          <div className="flex gap-2 mb-8 bg-[#f9f9fa] p-1 rounded-xl">
-            <button className="flex-1 py-2.5 px-4 bg-white rounded-lg font-display font-medium text-sm text-[#0f1013] shadow-sm">
-              Sign in
-            </button>
-            <button
-              onClick={() => navigate("/auth/signup")}
-              className="flex-1 py-2.5 px-4 rounded-lg font-display font-medium text-sm text-[#6B6F76] hover:text-[#0f1013] transition-colors"
-            >
-              Sign up
-            </button>
-          </div>
+      <SocialAuthButtons action="Sign in" />
 
-          <h1 className="font-display font-semibold text-2xl text-[#0f1013] mb-1">Welcome back</h1>
-          <p className="text-[#6B6F76] text-sm mb-6">Sign in to manage your numbers and messages.</p>
-
-          {locked && (
-            <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex gap-3">
-              <span className="text-lg">⏱️</span>
-              <div>Too many failed attempts. Try again in 30 seconds.</div>
-            </div>
-          )}
-          {notice && !errors.submit && (
-            <div className="mb-4 p-4 rounded-lg bg-amber-50 text-amber-800 text-sm flex gap-3">
-              <span className="text-lg">⏱️</span>
-              <div>{notice}</div>
-            </div>
-          )}
-
-          {!locked && errors.submit && (
-            <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex gap-3">
-              <span className="text-lg">⚠️</span>
-              <div>{errors.submit}</div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div>
-              <label className="block text-xs font-semibold text-[#6B6F76] mb-2">Email</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#9CA1A9]">✉️</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  disabled={locked}
-                  className={`w-full h-11 pl-12 pr-4 rounded-[11px] border text-sm font-sans transition-colors ${
-                    errors.email ? "border-red-500 bg-red-50" : "border-[#E1E2E7] bg-white focus:border-[#2155f5] focus:ring-2 focus:ring-[#eef1fb]"
-                  }`}
-                />
-              </div>
-              {errors.email && <p className="text-red-600 text-xs mt-1.5 flex gap-1"><span>ℹ️</span> {errors.email}</p>}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-xs font-semibold text-[#6B6F76] mb-2">Password</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#9CA1A9]">🔒</span>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  disabled={locked}
-                  className={`w-full h-11 pl-12 pr-12 rounded-[11px] border text-sm font-sans transition-colors ${
-                    errors.password ? "border-red-500 bg-red-50" : "border-[#E1E2E7] bg-white focus:border-[#2155f5] focus:ring-2 focus:ring-[#eef1fb]"
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9CA1A9] hover:text-[#6B6F76]"
-                >
-                  {showPassword ? "👁️" : "👁️‍🗨️"}
-                </button>
-              </div>
-              {errors.password && <p className="text-red-600 text-xs mt-1.5 flex gap-1"><span>ℹ️</span> {errors.password}</p>}
-            </div>
-
-            <button
-              type="submit"
-              disabled={locked || isLoginLoading}
-              className="w-full bg-[#2155f5] hover:bg-[#1a46d1] disabled:opacity-50 text-white font-display font-medium py-3 rounded-full transition-colors mt-6 cursor-pointer flex items-center justify-center gap-2"
-            >
-              {isLoginLoading ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Signing in...
-                </>
-              ) : (
-                "Sign in"
-              )}
-            </button>
-          </form>
-
-          <SocialAuthButtons action="Sign in" />
-
-          {/* Sign Up Link */}
-          <div className="mt-6 text-center text-sm">
-            <span className="text-[#6B6F76]">Don't have an account? </span>
-            <button onClick={() => navigate("/auth/signup")} className="text-[#2155f5] hover:underline font-medium">
-              Sign up
-            </button>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-[#9CA1A9] mt-6">
-          By continuing you agree to ZEDSMS's Terms of Service and Privacy Policy.
-        </p>
-        </div>
-      </div>
-      <Footer />
-    </div>
+      <p className="mt-6 text-center text-sm text-[#6B6F76]">
+        Don't have an account? <Link to="/auth/signup" replace className="text-[#2155f5] hover:underline font-medium">Sign up</Link>
+      </p>
+    </AuthShell>
   );
 }
 
 // ============ SIGN UP PAGE ============
+const Requirement = ({ met, children }: { met: boolean; children: React.ReactNode }) => (
+  <li className={`flex items-center gap-1.5 transition-colors ${met ? "text-green-600" : "text-[#9CA1A9]"}`}>
+    {met ? <CheckIcon className="size-3.5 shrink-0" /> : <DotIcon className="size-3.5 shrink-0" />}
+    {children}
+  </li>
+);
+
 function SignUpPage() {
   const navigate = useNavigate();
   const { signup, isSignupLoading } = useAuth();
@@ -224,206 +280,93 @@ function SignUpPage() {
   const [agreed, setAgreed] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const checks = pwChecks(password);
+  const clear = (key: string) => setErrors((er) => ({ ...er, [key]: "" }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSignupLoading) return;
 
     const newErrors: Record<string, string> = {};
-
     if (!email) newErrors.email = "Email is required";
     else if (!emailValid(email)) newErrors.email = "Enter a valid email";
-
     if (!password) newErrors.password = "Password is required";
     else if (!pwStrongEnough(password)) newErrors.password = "Password doesn't meet the requirements below";
-
-    if (confirm !== password || !confirm) newErrors.confirm = "Passwords don't match";
-
+    if (!confirm || confirm !== password) newErrors.confirm = "Passwords don't match";
     if (!agreed) newErrors.agreed = "You must accept the Terms to continue";
 
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
 
-    try {
-      await new Promise<void>((resolve, reject) => {
-        signup(
-          { email, password, password_confirmation: confirm },
-          {
-            onSuccess: () => {
-              setTimeout(() => navigate("/app/home"), 300);
-              resolve();
-            },
-            onError: (error: any) => {
-              setErrors({ submit: error.response?.data?.message || "Signup failed. Please try again." });
-              reject(error);
-            },
-          }
-        );
-      });
-    } catch (err) {
-      // Error handled in onError callback
-    }
+    signup(
+      { email: email.trim(), password, password_confirmation: confirm },
+      {
+        onSuccess: () => { setTimeout(() => navigate("/app/home"), 300); },
+        // the API client throws ApiError(message) — it has no axios-style .response,
+        // so reading that always fell back to the generic text and hid the real reason
+        onError: (error: any) => {
+          setErrors({ submit: error?.message || error?.body?.message || "Signup failed. Please try again." });
+        },
+      }
+    );
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9fa] flex flex-col">
-      <Navbar />
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[420px]">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="8" fill="#2155f5" />
-            <path d="M16 8C11.58 8 8 11.58 8 16s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" fill="white" />
-          </svg>
-          <span className="font-display font-semibold text-2xl text-[#0f1013]">ZEDSMS</span>
+    <AuthShell>
+      <AuthTabs active="signup" />
+
+      <h1 className="font-display font-semibold text-2xl text-[#0f1013] mb-1">Create your account</h1>
+      <p className="text-[#6B6F76] text-sm mb-6">Get a number in minutes. No name or username needed.</p>
+
+      {errors.submit && <Banner tone="danger" icon={<AlertIcon />}>{errors.submit}</Banner>}
+
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <AuthInput id="signup-email" label="Email" icon={<MailIcon />} type="email" autoComplete="email"
+          value={email} onChange={(v) => { setEmail(v); clear("email"); }}
+          placeholder="you@example.com" error={errors.email} />
+
+        <div>
+          <AuthInput id="signup-password" label="Password" icon={<LockIcon />} type="password" autoComplete="new-password"
+            value={password} onChange={(v) => { setPassword(v); clear("password"); }}
+            placeholder="Create a password" error={errors.password}
+            reveal={{ shown: showPassword, toggle: () => setShowPassword((s) => !s) }} />
+          <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs" aria-label="Password requirements">
+            <Requirement met={checks.len}>8+ characters</Requirement>
+            <Requirement met={checks.upper}>One uppercase</Requirement>
+            <Requirement met={checks.lower}>One lowercase</Requirement>
+            <Requirement met={checks.num}>One number</Requirement>
+          </ul>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-[20px] border border-[#e1e2e9] p-8">
-          {/* Tabs */}
-          <div className="flex gap-2 mb-8 bg-[#f9f9fa] p-1 rounded-xl">
-            <button
-              onClick={() => navigate("/auth/signin")}
-              className="flex-1 py-2.5 px-4 rounded-lg font-display font-medium text-sm text-[#6B6F76] hover:text-[#0f1013] transition-colors"
-            >
-              Sign in
-            </button>
-            <button className="flex-1 py-2.5 px-4 bg-white rounded-lg font-display font-medium text-sm text-[#0f1013] shadow-sm">
-              Sign up
-            </button>
-          </div>
+        {/* shares the password field's show/hide toggle */}
+        <AuthInput id="signup-confirm" label="Confirm password" icon={<LockIcon />} type="password" autoComplete="new-password"
+          value={confirm} onChange={(v) => { setConfirm(v); clear("confirm"); }}
+          placeholder="Re-enter your password" error={errors.confirm}
+          reveal={{ shown: showPassword, toggle: () => setShowPassword((s) => !s) }} />
 
-          <h1 className="font-display font-semibold text-2xl text-[#0f1013] mb-1">Create your account</h1>
-          <p className="text-[#6B6F76] text-sm mb-6">Get a number in minutes. No name or username needed.</p>
-
-          {errors.submit && (
-            <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex gap-3">
-              <span className="text-lg">⚠️</span>
-              <div>{errors.submit}</div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div>
-              <label className="block text-xs font-semibold text-[#6B6F76] mb-2">Email</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#9CA1A9]">✉️</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className={`w-full h-11 pl-12 pr-4 rounded-[11px] border text-sm font-sans transition-colors ${
-                    errors.email ? "border-red-500 bg-red-50" : "border-[#E1E2E7] bg-white focus:border-[#2155f5] focus:ring-2 focus:ring-[#eef1fb]"
-                  }`}
-                />
-              </div>
-              {errors.email && <p className="text-red-600 text-xs mt-1.5">ℹ️ {errors.email}</p>}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-xs font-semibold text-[#6B6F76] mb-2">Password</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#9CA1A9]">🔒</span>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={`w-full h-11 pl-12 pr-12 rounded-[11px] border text-sm font-sans transition-colors ${
-                    errors.password ? "border-red-500 bg-red-50" : "border-[#E1E2E7] bg-white focus:border-[#2155f5] focus:ring-2 focus:ring-[#eef1fb]"
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#9CA1A9]"
-                >
-                  {showPassword ? "👁️" : "👁️‍🗨️"}
-                </button>
-              </div>
-              {errors.password && <p className="text-red-600 text-xs mt-1.5">ℹ️ {errors.password}</p>}
-
-              {/* Password Requirements */}
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div className={checks.len ? "text-green-600" : "text-[#9CA1A9]"}>✓ 8+ characters</div>
-                <div className={checks.upper ? "text-green-600" : "text-[#9CA1A9]"}>✓ One uppercase</div>
-                <div className={checks.lower ? "text-green-600" : "text-[#9CA1A9]"}>✓ One lowercase</div>
-                <div className={checks.num ? "text-green-600" : "text-[#9CA1A9]"}>✓ One number</div>
-              </div>
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-xs font-semibold text-[#6B6F76] mb-2">Confirm password</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#9CA1A9]">🔒</span>
-                <input
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="••••••••"
-                  className={`w-full h-11 pl-12 pr-4 rounded-[11px] border text-sm font-sans transition-colors ${
-                    errors.confirm ? "border-red-500 bg-red-50" : "border-[#E1E2E7] bg-white focus:border-[#2155f5] focus:ring-2 focus:ring-[#eef1fb]"
-                  }`}
-                />
-              </div>
-              {errors.confirm && <p className="text-red-600 text-xs mt-1.5">ℹ️ {errors.confirm}</p>}
-            </div>
-
-            {/* Terms */}
-            <label className="flex items-start gap-3 text-sm text-[#6B6F76] mt-6">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="mt-1 cursor-pointer accent-[#2155f5]"
-              />
-              <span>I agree to the Terms of Service and Privacy Policy.</span>
-            </label>
-            {errors.agreed && <p className="text-red-600 text-xs">ℹ️ {errors.agreed}</p>}
-
-            <button
-              type="submit"
-              disabled={isSignupLoading}
-              className="w-full bg-[#2155f5] hover:bg-[#1a46d1] disabled:opacity-50 text-white font-display font-medium py-3 rounded-full transition-colors mt-6 cursor-pointer flex items-center justify-center gap-2"
-            >
-              {isSignupLoading ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Creating account...
-                </>
-              ) : (
-                "Create account"
-              )}
-            </button>
-          </form>
-
-          <SocialAuthButtons action="Sign up" />
-
-          {/* Sign In Link */}
-          <div className="mt-6 text-center text-sm">
-            <span className="text-[#6B6F76]">Already have an account? </span>
-            <button onClick={() => navigate("/auth/signin")} className="text-[#2155f5] hover:underline font-medium">
-              Sign in
-            </button>
-          </div>
+        <div className="pt-1">
+          <label htmlFor="signup-terms" className="flex items-start gap-2.5 text-sm text-[#6B6F76] cursor-pointer">
+            <input id="signup-terms" type="checkbox" checked={agreed}
+              onChange={(e) => { setAgreed(e.target.checked); clear("agreed"); }}
+              aria-invalid={!!errors.agreed} aria-describedby={errors.agreed ? "signup-terms-error" : undefined}
+              className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[#2155f5]" />
+            <span className="leading-snug">
+              I agree to the <Link to="/terms-of-service" className={legal}>Terms of Service</Link> and <Link to="/privacy-policy" className={legal}>Privacy Policy</Link>.
+            </span>
+          </label>
+          <FieldError id="signup-terms-error">{errors.agreed}</FieldError>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-[#9CA1A9] mt-6">
-          By continuing you agree to ZEDSMS's Terms of Service and Privacy Policy.
-        </p>
+        <div className="pt-2">
+          <SubmitButton loading={isSignupLoading} loadingText="Creating account…">Create account</SubmitButton>
         </div>
-      </div>
-      <Footer />
-    </div>
+      </form>
+
+      <SocialAuthButtons action="Sign up" />
+
+      <p className="mt-6 text-center text-sm text-[#6B6F76]">
+        Already have an account? <Link to="/auth/signin" replace className="text-[#2155f5] hover:underline font-medium">Sign in</Link>
+      </p>
+    </AuthShell>
   );
 }
 

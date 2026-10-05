@@ -31,6 +31,13 @@ declare global {
   }
 }
 
+// Google Identity Services must be initialized once per page load — re-initializing
+// on every mount (sign-in ↔ sign-up, StrictMode) triggers GSI's "called multiple
+// times" warning and only the last instance works. So initialize once and route the
+// credential to whichever SocialAuthButtons is mounted now.
+let googleInitialized = false;
+let onGoogleCredential: ((res: any) => void) | null = null;
+
 // Loads a third-party script once and resolves when it's ready.
 const scriptCache: Record<string, Promise<void>> = {};
 function loadScript(src: string): Promise<void> {
@@ -123,23 +130,30 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
     loadScript("https://accounts.google.com/gsi/client")
       .then(() => {
         if (cancelled || !googleHolder.current || !window.google) return;
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: (res: any) => {
-            if (!res?.credential) return fail("Google sign-in was cancelled.");
-            setError(""); setBusy("google");
-            run("google", { idToken: res.credential });
-          },
-        });
+        onGoogleCredential = (res: any) => {
+          if (!res?.credential) return fail("Google sign-in was cancelled.");
+          setError(""); setBusy("google");
+          run("google", { idToken: res.credential });
+        };
+        if (!googleInitialized) {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: (res: any) => onGoogleCredential?.(res),
+          });
+          googleInitialized = true;
+        }
+        // Google takes a fixed pixel width (200–400); match the card so it never
+        // overflows a phone (a hardcoded 320 stuck out of the ~280px card)
+        const width = Math.round(Math.min(400, Math.max(200, googleHolder.current.offsetWidth || 320)));
         window.google.accounts.id.renderButton(googleHolder.current, {
           theme: "outline", size: "large", shape: "pill",
           text: action === "Sign up" ? "signup_with" : "signin_with",
-          width: 320,
+          width,
         });
       })
       .catch(() => { if (!cancelled) setError("Could not load Google sign-in."); });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; onGoogleCredential = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
   }, [googleEnabled]);
 
@@ -199,24 +213,25 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
 
   return (
     <div>
-      <div className="flex items-center gap-3 my-5">
+      <div className="flex items-center gap-3 mt-6 mb-5">
         <div className="h-px bg-[#E1E2E7] flex-1" />
         <span className="text-[#9CA1A9] text-xs">or continue with</span>
         <div className="h-px bg-[#E1E2E7] flex-1" />
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-xs flex gap-2">
-          <span>⚠️</span><div>{error}</div>
+        <div role="alert" className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-xs flex items-start gap-2">
+          <svg viewBox="0 0 24 24" className="size-4 shrink-0 mt-px" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></svg>
+          <div>{error}</div>
         </div>
       )}
 
       {/* Google renders its own branded button */}
       {googleEnabled && (
-        <div ref={googleHolder} style={{ display: "flex", justifyContent: "center", marginBottom: buttonProviders.length || telegramWidget ? 12 : 0, minHeight: 44 }} />
+        <div ref={googleHolder} style={{ display: "flex", justifyContent: "center", marginBottom: buttonProviders.length || telegramWidget ? 10 : 0, minHeight: 40 }} />
       )}
 
-      <div className={`grid gap-3 ${buttonProviders.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+      <div className={`grid gap-2.5 ${buttonProviders.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
         {buttonProviders.map((p) => (
           <button
             key={p.id}
@@ -224,7 +239,7 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
             title={`${action} with ${p.label}`}
             disabled={!!busy}
             onClick={() => (p.id === "telegram" ? withTelegram() : withApple())}
-            className="h-11 rounded-full border border-[#E1E2E7] bg-white hover:bg-[#f9f9fa] disabled:opacity-60 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[#0f1013]"
+            className="h-10 rounded-full border border-[#dadce0] bg-white hover:bg-[#f9f9fa] disabled:opacity-60 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[#0f1013]"
           >
             {pending(p.id) ? (
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -232,14 +247,14 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : p.mark}
-            <span className="hidden sm:inline">{p.label}</span>
+            <span>{p.label}</span>
           </button>
         ))}
       </div>
 
       {/* Telegram renders its own branded button here */}
       {telegramWidget && (
-        <div ref={telegramHolder} style={{ marginTop: buttonProviders.length ? 12 : 0, display: "flex", justifyContent: "center" }} />
+        <div ref={telegramHolder} style={{ marginTop: buttonProviders.length ? 10 : 0, display: "flex", justifyContent: "center" }} />
       )}
     </div>
   );

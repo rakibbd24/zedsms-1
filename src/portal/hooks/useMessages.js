@@ -15,17 +15,14 @@ export function useRecentMessages() {
   });
 }
 
-export function useMessages(numberId) {
+// One page of a number's messages: { rows, page, lastPage, total, perPage }
+export function useMessages(numberId, page = 1) {
   return useQuery({
-    queryKey: ["messages", numberId ?? "all"],
-    queryFn: () => getMessages(numberId),
-    select: (data) => {
-      // Ensure data is always an array
-      if (Array.isArray(data)) return data;
-      if (data?.data && Array.isArray(data.data)) return data.data;
-      if (data?.messages && Array.isArray(data.messages)) return data.messages;
-      return [];
-    }
+    queryKey: ["messages", numberId ?? "all", page],
+    queryFn: () => getMessages(numberId, page),
+    enabled: !!numberId,
+    // keep the current page on screen while the next loads — but not across numbers
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[1] === (numberId ?? "all") ? prev : undefined),
   });
 }
 

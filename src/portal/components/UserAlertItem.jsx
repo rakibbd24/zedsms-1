@@ -109,7 +109,7 @@ export const UserAlertItem = ({ alert, onDismiss, onRead, itemType = 'alert' }) 
         )}
 
         {/* Category & Time */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 12px' }}>
           {alert.category && (
             <span
               style={{

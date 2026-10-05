@@ -6,8 +6,8 @@ import { Icon } from "../Icon";
 export const Modal = ({ open, onClose, title, subtitle, children, width = 430 }) => {
   if (!open) return null;
   const overlay = (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(8,9,12,0.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} className="modal-card" style={{ width, maxWidth: "100%", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 18, boxShadow: "var(--shadow-pop)", overflow: "hidden" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(8,9,12,0.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-card" style={{ width, maxWidth: "100%", maxHeight: "calc(100dvh - 32px)", overflowY: "auto", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 18, boxShadow: "var(--shadow-pop)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "18px 20px 0" }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 16.5, fontWeight: 600, letterSpacing: "-0.015em" }}>{title}</h3>

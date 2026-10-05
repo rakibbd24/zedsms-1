@@ -32,7 +32,7 @@ const isPrivateNumber = (n) => {
 
 /**
  * Put a live SMS straight into the cached lists so it shows instantly:
- *   ["messages", id]  that number's thread (only if it's been opened)
+ *   ["messages", id, 1] first page of that number's thread (only if it's been opened)
  *   ["numbers"]       that number's message count
  *   ["recentMessages"] the latest-messages feed
  * Private numbers (Telnyx / CloudNumbering / Pivotel) are keyed by
@@ -73,10 +73,13 @@ export function applyLiveSms(qc, event) {
     // my-numbers sends ids uncast (7 or "7" depending on the DB driver), and the
     // open thread is keyed by that value — so match every cached thread for this
     // number regardless of type, or the message only shows after a refetch
+    // newest-first, so a new SMS only lands on page 1; later pages catch up on refetch
     qc.getQueryCache()
       .findAll({ queryKey: ["messages"] })
-      .filter((q) => String(q.queryKey[1]) === String(numberId))
-      .forEach((q) => qc.setQueryData(q.queryKey, (old) => (isNew(old) ? [sms, ...old] : old)));
+      .filter((q) => String(q.queryKey[1]) === String(numberId) && q.queryKey[2] === 1)
+      .forEach((q) => qc.setQueryData(q.queryKey, (old) => (isNew(old?.rows)
+        ? { ...old, rows: [sms, ...old.rows], total: (old.total || 0) + 1 }
+        : old)));
 
     qc.setQueryData(["numbers"], (old) => Array.isArray(old)
       ? old.map((n) => (Number(n.id) === numberId && isPrivateNumber(n) === isPrivate
@@ -85,6 +88,8 @@ export function applyLiveSms(qc, event) {
       : old);
   }
 
+  // the Latest Messages feed is inbound only (see getRecentMessages)
+  if (event.direction === "outgoing") return;
   qc.setQueryData(["recentMessages"], (old) => (isNew(old)
     ? [normalizeRecentMessage(sms), ...old].slice(0, RECENT_LIMIT)
     : old));

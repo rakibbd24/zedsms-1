@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { expectOwnEvent } from "../lib/ownActions";
 import { getNumbers, getNumberExtensionPlans, releaseNumber, renameNumber, extendNumber, getRestoreNumberPrice, restoreNumber, transferNumber, updateAutoRenew, sendSmsFromNumber } from "../api/numbers";
 
 export function useNumbers() {
@@ -19,6 +20,7 @@ export function useExtendNumber() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ numberId, plan, typeId }) => extendNumber(numberId, { plan, typeId }),
+    onMutate: () => expectOwnEvent("NumberExtendNotification"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["balance"] });
       qc.invalidateQueries({ queryKey: ["numbers"] });
@@ -47,6 +49,7 @@ export function useReleaseNumber() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ numberId, typeId }) => releaseNumber(numberId, typeId),
+    onMutate: () => expectOwnEvent("NumberCancelNotification"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }
@@ -63,6 +66,7 @@ export function useTransferNumber() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ numberId, toZedId, typeId }) => transferNumber(numberId, toZedId, typeId),
+    onMutate: () => expectOwnEvent("NumberTransferNotification"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["numbers"] }),
   });
 }

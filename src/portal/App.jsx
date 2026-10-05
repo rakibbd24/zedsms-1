@@ -6,6 +6,8 @@ import { Topbar } from "./components/Topbar";
 import { TweaksPanel, TweakSection, TweakColor, TweakRadio } from "./components/TweaksPanel";
 import { useTweaks } from "./hooks/useTweaks";
 import { HomeScreen, NumbersScreen } from "./screens/screens1";
+import { numberKeyOf } from "./lib/numberKey";
+import { isOwnEcho } from "./lib/ownActions";
 import { BuyScreen, TopUpScreen, TransferScreen, TransactionsScreen, SettingsScreen } from "./screens/screens2";
 import AlertsDesignPreview from "./screens/AlertsDesignPreview";
 import { Icon } from "./components/Icon";
@@ -35,6 +37,13 @@ main { display: flex; flex-direction: column; min-height: auto; }
 @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes popIn { from { transform: translateY(-4px) scale(0.98); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* shared classes used across the portal screens */
+.tnum { font-variant-numeric: tabular-nums; }
+/* opacity only: a transform here would trap position:fixed children */
+.view-enter { animation: fadeIn 0.2s ease both; }
+.skel { border-radius: var(--r-card); background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 50%, var(--surface-2) 100%); background-size: 1000px 100%; animation: shimmer 2s infinite; }
 
 .spinner {
   width: 40px;
@@ -57,16 +66,42 @@ main { display: flex; flex-direction: column; min-height: auto; }
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+.stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+
+.numbers-back { display: none !important; }
+.buy-mobile-bar { display: none; }
+.buy-type-mobile-info { display: none; }
+.tx-list { display: none; }
+/* the bulk-order stepper has its own − / + buttons */
+.bulk-qty input::-webkit-outer-spin-button, .bulk-qty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.bulk-qty input { -moz-appearance: textfield; appearance: textfield; }
+@keyframes sheetUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
 @media (max-width: 1080px) {
-  .home-grid { grid-template-columns: 1fr !important; }
-  .numbers-layout { grid-template-columns: 1fr !important; }
-  .numbers-layout > *:first-child { position: static !important; }
+  .home-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  /* numbers: list and number detail become separate pages */
+  .numbers-layout { grid-template-columns: minmax(0, 1fr) !important; }
+  .numbers-layout[data-view="list"] > .numbers-detail { display: none !important; }
+  .numbers-layout[data-view="detail"] > .numbers-list { display: none !important; }
+  .numbers-list { position: static !important; }
+  .numbers-list-scroll { max-height: none !important; }
+  .msg-scroll { max-height: none !important; }
+  .numbers-back { display: inline-flex !important; }
+  .buy-summary { position: static !important; scroll-margin-top: 72px; }
   .buy-layout { grid-template-columns: 1fr !important; }
 }
 @media (max-width: 880px) {
-  .sidebar { position: fixed !important; left: 0; top: 0; transform: translateX(-100%); transition: transform 0.26s cubic-bezier(0.22,1,0.36,1); box-shadow: var(--shadow-pop); }
+  .sidebar { position: fixed !important; left: 0; top: 0 !important; height: 100dvh !important; max-width: 85vw; transform: translateX(-100%); transition: transform 0.26s cubic-bezier(0.22,1,0.36,1); box-shadow: var(--shadow-pop); }
   .sidebar[data-open="true"] { transform: translateX(0); }
+  .topbar { top: 0 !important; }
+  .topbar-inner { height: 56px !important; padding: 0 16px !important; gap: 8px !important; }
+  .topbar-title h1 { font-size: 17px !important; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stat-card { padding: 13px 14px !important; }
+  .stat-value { font-size: 21px !important; }
   .mobile-only-flex { display: flex !important; }
+  /* a header slot holding only a desktop-only control would leave an empty row */
+  .step-title-right:has(> .desktop-only:only-child) { display: none; }
   .desktop-only { display: none !important; }
   .svc-grid { grid-template-columns: repeat(3, 1fr) !important; }
   .settings-layout { grid-template-columns: 1fr !important; }
@@ -75,6 +110,96 @@ main { display: flex; flex-direction: column; min-height: auto; }
   .topbar-search { display: none !important; }
 }
 @media (max-width: 560px) {
+  /* buy number */
+  .buy-page, .topup-page, .transfer-page { padding-bottom: 76px; }
+  .transfer-recipient { font-size: 16px !important; } /* below 16px iOS zooms in on focus */
+  /* below 16px iOS zooms in on focus; the big 6-digit code boxes keep their size */
+  .buy-page input, .settings-layout input, .modal-card input:not(.otp-input) { font-size: 16px !important; }
+  /* settings */
+  .settings-tabs { gap: 4px !important; padding: 3px; border-radius: 11px; background: var(--surface-2); scrollbar-width: none; }
+  .settings-tabs::-webkit-scrollbar { display: none; }
+  .settings-tabs > button { flex: 1 0 auto; justify-content: center; height: 34px; padding: 0 12px !important; border-radius: 9px !important; white-space: nowrap; border: 1px solid transparent; background: transparent !important; color: var(--text-muted) !important; }
+  .settings-tabs > button[data-active="true"] { background: var(--surface) !important; color: var(--text) !important; border-color: var(--border); box-shadow: var(--shadow-sm); }
+  .settings-body { max-width: none !important; min-width: 0; }
+  .settings-body [style*="padding: 22px"] { padding: 16px !important; } /* the 22px cards */
+  /* profile rows: label on its own line, value + action underneath */
+  .profile-row { grid-template-columns: minmax(0, 1fr) auto !important; }
+  .profile-row > div:first-child { grid-column: 1 / -1; font-size: 12px !important; }
+  .settings-danger-row { flex-direction: column; align-items: stretch !important; gap: 12px !important; }
+  .settings-danger-row > button { width: 100%; }
+  .settings-indent { margin-left: 0 !important; }
+  .settings-tfa-actions > button { flex: 1 1 100%; }
+  .sec-head { flex-wrap: wrap; }
+  .sec-head > button { flex: 1 1 100%; }
+  .sec-actions > button { flex: 1; }
+  .tfa-setup { flex-direction: column; text-align: center; }
+  .tfa-setup > div:last-child { display: flex; flex-direction: column; align-items: center; }
+  /* settings → notifications */
+  .notif-head { flex-wrap: wrap; padding: 16px !important; gap: 12px !important; }
+  .notif-head > div:nth-child(2) { flex: 1 1 calc(100% - 52px) !important; }
+  .notif-head > div:last-child { flex: 1 1 100%; }
+  .notif-head > div:last-child > button { width: 100%; }
+  .notif-channel { padding: 14px 16px !important; }
+  .notif-identity { flex-wrap: wrap; row-gap: 10px !important; }
+  .notif-confirm { flex: 1 1 100%; justify-content: flex-end; padding: 8px 10px; border-radius: 10px; background: var(--danger-soft); }
+  .notif-confirm > button { height: 34px !important; padding: 0 16px !important; }
+  .notif-controls { grid-template-columns: 1fr !important; gap: 12px !important; }
+  /* menus span their full-width trigger instead of a fixed 260px box */
+  .settings-body .menu-pop { left: 0 !important; right: 0 !important; width: auto !important; }
+  /* transactions: list instead of the 600px table */
+  .tx-table { display: none; }
+  .tx-list { display: block; }
+  .tx-list > div:last-child { border-bottom: none !important; }
+  .tx-head { padding: 12px !important; gap: 8px !important; flex-wrap: nowrap !important; }
+  .tx-tabs { flex: 1; min-width: 0; }
+  .tx-tabs > button { flex: 1; padding: 0 6px !important; height: 32px !important; }
+  .tx-export-label { display: none; }
+  .tx-head > button { width: 38px; height: 38px !important; padding: 0 !important; flex-shrink: 0; }
+  .tx-foot { flex-direction: column; justify-content: center !important; gap: 10px !important; padding: 13px 16px !important; }
+  /* top up */
+  .topup-presets { gap: 8px !important; }
+  .topup-presets > button { height: 48px !important; font-size: 16px !important; }
+  .gw-indent { padding-left: 15px !important; }
+  .gw-meta { gap: 6px 14px !important; }
+  .gw-meta span { white-space: normal !important; }
+  /* number type: a two-tab switch, details for the picked one underneath */
+  .buy-type-grid { gap: 4px !important; padding: 3px; border-radius: 11px; background: var(--surface-2); }
+  .buy-type-grid > button { padding: 0 !important; height: 38px; border-radius: 9px !important; border: 1px solid transparent !important; background: transparent !important; display: flex; align-items: center; justify-content: center; }
+  .buy-type-grid > button[data-sel="true"] { background: var(--surface) !important; border-color: var(--border) !important; box-shadow: var(--shadow-sm); }
+  .buy-type-grid > button[data-sel="false"] .buy-type-head { color: var(--text-muted); }
+  .buy-type-head { margin: 0 !important; justify-content: center; }
+  .buy-type-head > span:first-child { font-size: 13.5px !important; }
+  .buy-type-dot, .buy-type-desc, .buy-type-caps { display: none !important; }
+  .buy-type-mobile-info { display: flex; flex-direction: column; gap: 9px; margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+  /* US state picker: label above a full-width select */
+  .buy-state-row { flex-direction: column; align-items: stretch !important; gap: 6px !important; }
+  .buy-state-row > div { max-width: none !important; }
+  .step-title { flex-wrap: wrap; }
+  .step-title > div:first-child { flex: 1 1 200px; min-width: 0; }
+  .step-title-right { flex: 1 1 100%; }
+  .step-title-right .buy-search { height: 38px !important; }
+  .step-title-right .buy-search input { width: 100% !important; }
+  .step-title-right > button { width: 100%; justify-content: center; }
+  .buy-num-footer { display: grid !important; grid-template-columns: 1fr 1fr; }
+  .buy-num-footer > span { grid-column: 1 / -1; }
+  .buy-num-footer > button { width: 100%; justify-content: center; }
+  /* modals become bottom sheets */
+  .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+  .modal-card { width: 100% !important; max-height: 90dvh !important; border-radius: 18px 18px 0 0 !important; border-bottom: none !important; padding-bottom: env(safe-area-inset-bottom); animation: sheetUp 0.24s cubic-bezier(0.22,1,0.36,1) both; }
+  /* bulk order: stepper full width, quick picks underneath */
+  .bulk-qty { flex-direction: column; }
+  .bulk-qty > div:first-child { flex: 0 0 46px !important; height: 46px !important; }
+  .bulk-presets > button { height: 36px; }
+  .plan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .buy-processing-card { min-width: 0 !important; width: calc(100vw - 32px); max-width: 360px; padding: 32px 24px !important; }
+  .buy-mobile-bar { display: flex; align-items: center; gap: 12px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 20px rgba(8,9,12,0.06);
+    transition: transform 0.24s cubic-bezier(0.22,1,0.36,1), box-shadow 0.24s ease; will-change: transform; }
+  .buy-mobile-bar[data-hidden="true"] { transform: translateY(calc(100% + 8px)); box-shadow: none; pointer-events: none; }
+  .num-actions { width: 100%; }
+  .num-actions > button { flex: 1; justify-content: center; }
+  .msg-toolbar-actions { width: 100%; }
+  .msg-toolbar-actions > div:first-child { flex: 1; }
   .svc-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .country-grid { grid-template-columns: 1fr !important; }
 }
@@ -159,7 +284,6 @@ function AppContent({ onLogoutRedirect }) {
   const route = getCurrentRoute();
   const [theme, setTheme] = React.useState(() => localStorage.getItem("zedsms-theme") || "light");
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [pendingNumber, setPendingNumber] = React.useState(null);
   const scrollRef = React.useRef(null);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
@@ -168,6 +292,8 @@ function AppContent({ onLogoutRedirect }) {
   const [liveToast, setLiveToast] = React.useState(null);
   const liveToastTimer = React.useRef(null);
   useRealtime(user?.id, (event) => {
+    // the screen that took this action already toasted it (data still refreshes)
+    if (isOwnEcho(event.type)) return;
     const msg = event.sms_content !== undefined
       ? `New SMS${event.sms_from ? ` from ${event.sms_from}` : ""}`
       : event.title;
@@ -218,9 +344,9 @@ function AppContent({ onLogoutRedirect }) {
 
   const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
+  // id is a uid ("private:12") or a plain id; each number has its own page
   const goNumbers = (id) => {
-    setPendingNumber(id);
-    navigate("/app/numbers");
+    navigate(id != null ? `/app/numbers/${numberKeyOf(id)}` : "/app/numbers");
   };
 
   const setRoute = (newRoute) => {
@@ -267,7 +393,8 @@ function AppContent({ onLogoutRedirect }) {
           <main ref={scrollRef} className="content-inner">
             <Routes>
               <Route path="/home" element={<HomeScreen setRoute={setRoute} openNumber={goNumbers} />} />
-              <Route path="/numbers" element={<NumbersScreen initialNumberId={pendingNumber} clearInitial={() => setPendingNumber(null)} />} />
+              <Route path="/numbers" element={<NumbersScreen />} />
+              <Route path="/numbers/:numberKey" element={<NumbersScreen />} />
               <Route path="/buy" element={<BuyScreen setRoute={setRoute} openNumber={goNumbers} />} />
               <Route path="/topup" element={<TopUpScreen />} />
               <Route path="/transfer" element={<TransferScreen />} />

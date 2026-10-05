@@ -22,6 +22,24 @@ const CHANNEL_META = {
   telegram: { label: "Telegram", icon: "telegram", color: "#2AABEE" },
 };
 
+// Telegram setup in progress, kept in sessionStorage (this tab only) for 30 minutes.
+const PENDING_TG_KEY = "zedsms-pending-telegram";
+const PENDING_TG_TTL_MS = 30 * 60 * 1000;
+const readPendingTg = () => {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(PENDING_TG_KEY) || "null");
+    return v?.code && Date.now() - v.at < PENDING_TG_TTL_MS ? v : null;
+  } catch {
+    return null;
+  }
+};
+const savePendingTg = (code) => {
+  try { sessionStorage.setItem(PENDING_TG_KEY, JSON.stringify({ code, at: Date.now() })); } catch { /* storage unavailable */ }
+};
+const clearPendingTg = () => {
+  try { sessionStorage.removeItem(PENDING_TG_KEY); } catch { /* storage unavailable */ }
+};
+
 const NotificationsSettings = () => {
   const channelsQ = useNotificationChannels();
   const channels = channelsQ.data || [];
@@ -59,27 +77,62 @@ const NotificationsSettings = () => {
   };
 
   // ---- add telegram channel (code → /add=<code> to the bot → poll) ----
-  const [tgModal, setTgModal] = React.useState(false);
-  const [tgCode, setTgCode] = React.useState("");
+  // A pending link survives a page reload: switching to the Telegram app can reload
+  // this tab (the browser discarding it, or Vite's dev client reconnecting), which
+  // would otherwise drop the modal and its code mid-setup.
+  const pendingTg = React.useMemo(() => readPendingTg(), []);
+  const [tgModal, setTgModal] = React.useState(!!pendingTg);
+  const [tgCode, setTgCode] = React.useState(pendingTg?.code || "");
   const [tgErr, setTgErr] = React.useState("");
   const [tgDone, setTgDone] = React.useState(false);
+  const closeTg = () => { setTgModal(false); clearPendingTg(); };
   const openTg = () => {
     setTgErr(""); setTgDone(false); setTgCode(""); setTgModal(true);
     addCh.mutate({ type: "telegram" }, {
-      onSuccess: (r) => { if (r.verificationCode) setTgCode(String(r.verificationCode)); else setTgErr(r.message || "No verification code returned"); },
-      onError: (e) => setTgErr(e.message),
-    });
-  };
-  const verifyTg = () => {
-    setTgErr("");
-    checkTg.mutate(tgCode, {
       onSuccess: (r) => {
-        if (r.connected) { setTgDone(true); showToast("Telegram channel connected"); }
-        else setTgErr(r.message || `Send /add=${tgCode} to ${TELEGRAM_BOT} first.`);
+        if (r.verificationCode) { setTgCode(String(r.verificationCode)); savePendingTg(String(r.verificationCode)); }
+        else setTgErr(r.message || "No verification code returned");
       },
       onError: (e) => setTgErr(e.message),
     });
   };
+  // Deep link: Telegram opens the bot and sends "/start add_<code>" when the user taps
+  // Start, so the chat links without typing the command. Start payloads only allow
+  // A–Z a–z 0–9 _ - (max 64), hence add_<code> rather than add=<code>.
+  const botHandle = TELEGRAM_BOT.replace("@", "");
+  const tgStartLink = /^[A-Za-z0-9_-]{1,60}$/.test(tgCode)
+    ? `https://t.me/${botHandle}?start=add_${tgCode}`
+    : `https://t.me/${botHandle}`;
+  // after the user taps Start in Telegram and comes back, check the link for them
+  const openedTg = React.useRef(false);
+  const verifyTg = (code = tgCode) => {
+    setTgErr("");
+    checkTg.mutate(code, {
+      onSuccess: (r) => {
+        if (r.connected) { setTgDone(true); clearPendingTg(); showToast("Telegram channel connected"); }
+        else setTgErr(r.message || `Send /add=${code} to ${TELEGRAM_BOT} first.`);
+      },
+      onError: (e) => setTgErr(e.message),
+    });
+  };
+  // came back to a reloaded page mid-setup: the user most likely just tapped Start
+  React.useEffect(() => {
+    if (pendingTg) verifyTg(pendingTg.code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
+
+  React.useEffect(() => {
+    if (!tgModal || tgDone || !tgCode) return undefined;
+    const onBack = () => {
+      if (document.visibilityState !== "visible" || !openedTg.current || checkTg.isPending) return;
+      openedTg.current = false;
+      verifyTg();
+    };
+    document.addEventListener("visibilitychange", onBack);
+    window.addEventListener("focus", onBack);
+    return () => { document.removeEventListener("visibilitychange", onBack); window.removeEventListener("focus", onBack); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- verifyTg reads the latest tgCode via this effect's deps
+  }, [tgModal, tgDone, tgCode, checkTg.isPending]);
 
   const onRemove = (ch) => removeCh.mutate(ch.id, {
     onSuccess: (m) => showToast(m || "Channel removed", "danger"),
@@ -98,7 +151,7 @@ const NotificationsSettings = () => {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Card style={{ padding: 0, overflow: "visible" }}>
         {/* header */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "20px 22px", borderBottom: channels.length ? "1px solid var(--border)" : "none" }}>
+        <div className="notif-head" style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "20px 22px", borderBottom: channels.length ? "1px solid var(--border)" : "none" }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="bell" size={19} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600 }}>Notification channels</h3>
@@ -128,6 +181,8 @@ const NotificationsSettings = () => {
                 ch={ch}
                 last={i === channels.length - 1}
                 saving={updateNumbers.isPending || updateEvents.isPending}
+                // stays pending until the channel list has refetched (the mutation awaits it)
+                removing={removeCh.isPending && removeCh.variables === ch.id}
                 onNumbers={(ids) => onNumbers(ch, ids)}
                 onEvents={(ids) => onEvents(ch, ids)}
                 onDelete={() => onRemove(ch)}
@@ -164,7 +219,7 @@ const NotificationsSettings = () => {
         ) : (
           <>
             <input autoFocus value={emailCode} onChange={(e) => { setEmailCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setEmailErr(""); }} inputMode="numeric" placeholder="000000"
-              className="mono tnum" style={{ width: "100%", height: 56, padding: "0 14px", borderRadius: 11, border: `1px solid ${emailErr ? "var(--danger)" : "var(--border-strong)"}`, background: "var(--surface-2)", fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", color: "var(--text)", outline: "none" }} />
+              className="mono tnum otp-input" style={{ width: "100%", height: 56, padding: "0 14px", borderRadius: 11, border: `1px solid ${emailErr ? "var(--danger)" : "var(--border-strong)"}`, background: "var(--surface-2)", fontSize: 26, fontWeight: 600, textAlign: "center", letterSpacing: "0.4em", color: "var(--text)", outline: "none" }} />
             <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--text-faint)" }}>Sent to {emailVal}. The code is valid for 24 hours.</p>
             {emailErr && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)", marginTop: 9 }}><Icon name="info" size={13} /> {emailErr}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
@@ -185,7 +240,7 @@ const NotificationsSettings = () => {
       </Modal>
 
       {/* ===== Add telegram channel ===== */}
-      <Modal open={tgModal} onClose={() => setTgModal(false)} width={460}
+      <Modal open={tgModal} onClose={closeTg} width={460}
         title={tgDone ? "Telegram added" : "Add Telegram channel"}
         subtitle={tgDone ? "You're all set" : `Link the ${TELEGRAM_BOT} chat to your account`}>
         {!tgDone ? (
@@ -193,9 +248,12 @@ const NotificationsSettings = () => {
             <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
               <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, flexShrink: 0 }}>1</div>
               <div style={{ flex: 1, paddingTop: 2 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 550, marginBottom: 8 }}>Open the ZEDSMS bot in Telegram</div>
-                <a href={`https://t.me/${TELEGRAM_BOT.replace("@", "")}`} target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: 10, background: "#2AABEE", color: "#fff", fontSize: 13, fontWeight: 600 }}>
-                  <Icon name="telegram" size={16} /> Open {TELEGRAM_BOT}
+                <div style={{ fontSize: 13.5, fontWeight: 550, marginBottom: 3 }}>Open the ZEDSMS bot and tap Start</div>
+                <p style={{ margin: "0 0 9px", fontSize: 11.5, color: "var(--text-faint)", lineHeight: 1.5 }}>Your chat links automatically — no need to type anything.</p>
+                <a href={tgCode ? tgStartLink : undefined} target="_blank" rel="noopener" aria-disabled={!tgCode}
+                  onClick={(e) => { if (!tgCode) { e.preventDefault(); return; } openedTg.current = true; }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: 10, background: "#2AABEE", color: "#fff", fontSize: 13, fontWeight: 600, opacity: tgCode ? 1 : 0.55, pointerEvents: tgCode ? undefined : "none" }}>
+                  <Icon name="telegram" size={16} /> {tgCode ? `Open ${TELEGRAM_BOT}` : "Preparing your link…"}
                 </a>
               </div>
             </div>
@@ -203,7 +261,7 @@ const NotificationsSettings = () => {
             <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
               <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, flexShrink: 0 }}>2</div>
               <div style={{ flex: 1, paddingTop: 2 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 550, marginBottom: 8 }}>Send this command to the bot</div>
+                <div style={{ fontSize: 13.5, fontWeight: 550, marginBottom: 8 }}>Didn't link? Send this command to the bot</div>
                 {tgCode ? <CodeChip code={`/add=${tgCode}`} size="lg" /> : <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Getting your code…</span>}
                 <p style={{ margin: "9px 0 0", fontSize: 11.5, color: "var(--text-faint)", lineHeight: 1.5 }}>This one-time command links your Telegram chat. It expires in 24 hours.</p>
               </div>
@@ -216,7 +274,7 @@ const NotificationsSettings = () => {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <Button variant="subtle" full onClick={() => setTgModal(false)} disabled={checkTg.isPending}>Cancel</Button>
+              <Button variant="subtle" full onClick={closeTg} disabled={checkTg.isPending}>Cancel</Button>
               <Button full icon={checkTg.isPending ? undefined : "check"} disabled={!tgCode || checkTg.isPending} onClick={verifyTg}>
                 {checkTg.isPending ? (
                   <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -234,7 +292,7 @@ const NotificationsSettings = () => {
             <div style={{ width: 56, height: 56, borderRadius: 99, background: "var(--success-soft)", color: "var(--success)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}><Icon name="check" size={28} strokeWidth={2.4} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Telegram channel added</div>
             <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.5 }}>Your Telegram chat is now linked. Tune its Incoming SMS and System alerts below.</p>
-            <Button full onClick={() => setTgModal(false)}>Done</Button>
+            <Button full onClick={closeTg}>Done</Button>
           </div>
         )}
       </Modal>
@@ -269,27 +327,32 @@ const AddChannelMenu = ({ onEmail, onTelegram, busy }) => (
 );
 
 // ---------- One channel row ----------
-const ChannelCard = ({ ch, last, saving, onNumbers, onEvents, onDelete }) => {
+const ChannelCard = ({ ch, last, saving, removing, onNumbers, onEvents, onDelete }) => {
   const m = CHANNEL_META[ch.type];
   const [confirm, setConfirm] = React.useState(false);
 
   return (
-    <div style={{ padding: "16px 22px", borderBottom: last ? "none" : "1px solid var(--border)" }}>
+    <div className="notif-channel" aria-busy={removing} style={{ padding: "16px 22px", borderBottom: last ? "none" : "1px solid var(--border)", transition: "opacity 0.15s" }}>
       {/* identity row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="notif-identity" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 38, height: 38, borderRadius: 11, background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", color: m.color, flexShrink: 0 }}><Icon name={m.icon} size={19} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{m.label}</span>
             {ch.verified ? <Badge tone="success" dot>Verified</Badge> : <Badge tone="warning" dot>Pending</Badge>}
           </div>
           <div style={{ fontSize: 12.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ch.account || (ch.type === "telegram" ? "Not linked yet" : "—")}{ch.name ? ` · ${ch.name}` : ""}</div>
         </div>
         {confirm ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Remove?</span>
-            <button onClick={onDelete} style={{ height: 30, padding: "0 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: "#fff", background: "var(--danger, #E5484D)" }}>Yes</button>
-            <button onClick={() => setConfirm(false)} style={{ height: 30, padding: "0 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", background: "var(--surface-2)", border: "1px solid var(--border)" }}>No</button>
+          <div className="notif-confirm" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{removing ? "Removing…" : "Remove?"}</span>
+            <button onClick={onDelete} disabled={removing} aria-label={removing ? "Removing channel" : "Yes, remove"}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minWidth: 44, height: 30, padding: "0 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: "#fff", background: "var(--danger, #E5484D)", cursor: removing ? "default" : "pointer" }}>
+              {removing
+                ? <span style={{ width: 13, height: 13, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.45)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} />
+                : "Yes"}
+            </button>
+            <button onClick={() => setConfirm(false)} disabled={removing} style={{ height: 30, padding: "0 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", background: "var(--surface-2)", border: "1px solid var(--border)", opacity: removing ? 0.5 : 1, cursor: removing ? "default" : "pointer" }}>No</button>
           </div>
         ) : (
           <button onClick={() => setConfirm(true)} title="Remove channel"
@@ -302,7 +365,7 @@ const ChannelCard = ({ ch, last, saving, onNumbers, onEvents, onDelete }) => {
       </div>
 
       {/* controls */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14, opacity: saving ? 0.6 : 1, transition: "opacity 0.15s" }}>
+      <div className="notif-controls" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14, opacity: saving || removing ? 0.5 : 1, pointerEvents: removing ? "none" : undefined, transition: "opacity 0.15s" }}>
         <ControlField label="Incoming SMS" hint="Which numbers forward here">
           <SmsScopeMenu numbers={ch.numbers} onChange={onNumbers} />
         </ControlField>

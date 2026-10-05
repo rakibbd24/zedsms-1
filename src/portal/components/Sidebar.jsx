@@ -4,6 +4,9 @@ import { LogoMark } from "./LogoMark";
 import { NAV } from "./nav";
 import { useUser } from "../hooks/useUser";
 import { useBalance } from "../hooks/useBalance";
+import { copyText } from "../lib/clipboard";
+import { Modal } from "./ui/Modal";
+import { Button } from "./ui/Button";
 
 const NavItem = ({ item, route, setRoute, setMobileOpen }) => {
   const active = route === item.id;
@@ -17,7 +20,7 @@ const NavItem = ({ item, route, setRoute, setMobileOpen }) => {
         transition: "all 0.14s ease", position: "relative", letterSpacing: "-0.005em", border: active ? "2px solid #2155f5" : "none" }}>
       <Icon name={item.icon} size={18} strokeWidth={active ? 2 : 1.7} />
       <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>
-      {item.id === "buy" && <span style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 600, color: active ? "#ffffff" : "var(--accent)", background: active ? "rgba(255,255,255,0.2)" : "var(--accent-soft)", padding: "2px 6px", borderRadius: 6 }}>⌘B</span>}
+      {item.id === "buy" && <span className="desktop-only" style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 600, color: active ? "#ffffff" : "var(--accent)", background: active ? "rgba(255,255,255,0.2)" : "var(--accent-soft)", padding: "2px 6px", borderRadius: 6 }}>⌘B</span>}
     </button>
   );
 };
@@ -32,6 +35,19 @@ export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }
   const zedId = user?.zedId ?? "";
   const userInitial = (email[0] || "?").toUpperCase();
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+  const [idCopied, setIdCopied] = React.useState(false);
+
+  // the ID sits inside the settings button, so stop the tap from navigating
+  const copyId = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!zedId) return;
+    copyText(zedId).then((ok) => {
+      if (!ok) return;
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 1600);
+    });
+  };
 
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
@@ -104,7 +120,11 @@ export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }
               <div style={{ width: 32, height: 32, borderRadius: 99, background: "var(--accent)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, flexShrink: 0 }}>{userInitial}</div>
               <div style={{ textAlign: "left", overflow: "hidden", flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>
-                <div className="mono" style={{ fontSize: 11.5, color: "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>ID {zedId}</div>
+                <span role="button" tabIndex={0} title="Copy your ZEDSMS ID" onClick={copyId} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") copyId(e); }}
+                  className="mono" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: idCopied ? "var(--success)" : "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", cursor: "copy" }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{idCopied ? "Copied" : `ID ${zedId}`}</span>
+                  <Icon name={idCopied ? "check" : "copy"} size={12} strokeWidth={idCopied ? 2.3 : 1.8} />
+                </span>
               </div>
             </button>
             <button onClick={handleLogoutClick} title="Log out" style={{ width: 32, height: 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-faint)", flexShrink: 0 }}
@@ -113,28 +133,15 @@ export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }
               <Icon name="logout" size={16} />
             </button>
 
-            {/* Logout Confirmation Modal */}
-            {showLogoutConfirm && (
-              <>
-                <div onClick={() => setShowLogoutConfirm(false)} style={{ position: "fixed", inset: 0, background: "rgba(8,9,12,0.4)", zIndex: 999, backdropFilter: "blur(2px)" }} />
-                <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--surface)", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "var(--shadow-pop)", zIndex: 1000, maxWidth: 400, width: "90vw", overflow: "hidden" }}>
-                  <div style={{ padding: 24 }}>
-                    <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Sign out?</div>
-                    <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 24, lineHeight: 1.5 }}>
-                      Are you sure you want to sign out? You'll need to sign in again to access your account.
-                    </p>
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <button onClick={() => setShowLogoutConfirm(false)} style={{ flex: 1, height: 40, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", fontSize: 13.5, fontWeight: 500, cursor: "pointer" }}>
-                        Cancel
-                      </button>
-                      <button onClick={confirmLogout} style={{ flex: 1, height: 40, borderRadius: 10, background: "var(--danger)", color: "#fff", border: "none", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
-                        Sign out
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+            {/* Logout confirmation — the shared Modal portals to <body>: rendered in place it
+                was trapped by the mobile drawer's transform and clipped to the drawer */}
+            <Modal open={showLogoutConfirm} onClose={() => setShowLogoutConfirm(false)} width={400}
+              title="Sign out?" subtitle="You'll need to sign in again to access your account.">
+              <div style={{ display: "flex", gap: 10 }}>
+                <Button full variant="subtle" onClick={() => setShowLogoutConfirm(false)}>Cancel</Button>
+                <Button full variant="danger" icon="logout" onClick={confirmLogout}>Sign out</Button>
+              </div>
+            </Modal>
           </div>
         </div>
       </aside>

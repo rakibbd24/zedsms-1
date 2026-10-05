@@ -17,8 +17,12 @@ export async function getRecentMessages() {
       messages = response;
     }
 
-    // Normalize messages for display and limit to the most recent
-    return messages.slice(0, RECENT_LIMIT).map(normalizeRecentMessage);
+    // Latest Messages is an inbox: drop outbound (sent from a private number) before
+    // limiting, so the feed still holds RECENT_LIMIT received messages
+    return messages
+      .filter((m) => m.direction !== "outgoing")
+      .slice(0, RECENT_LIMIT)
+      .map(normalizeRecentMessage);
   } catch (error) {
     console.error("Error fetching recent messages:", error);
     return [];
@@ -97,21 +101,31 @@ function getServiceLetter(comPort) {
   return letters[comPort] || (comPort ? comPort[0].toUpperCase() : "?");
 }
 
-// Get received SMS messages for a specific number
-export async function getMessages(numberId) {
-  if (!numberId) return [];
+export const MESSAGES_PER_PAGE = 20;
+
+// One page of a number's SMS, newest first.
+// GET /user/all-sms/{id}?page=N&per_page=20 → { message, data: <laravel paginator> }
+// per_page is a hint: if the backend ignores it, its own page size is used.
+export async function getMessages(numberId, page = 1) {
+  const empty = { rows: [], page: 1, lastPage: 1, total: 0, perPage: MESSAGES_PER_PAGE };
+  if (!numberId) return empty;
   try {
-    const response = await api.get(`/user/all-sms/${numberId}`);
-    // API returns paginated response
-    if (response?.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    if (Array.isArray(response)) return response;
-    if (response?.data && Array.isArray(response.data)) return response.data;
-    return [];
+    const res = await api.get(`/user/all-sms/${numberId}?page=${page}&per_page=${MESSAGES_PER_PAGE}`);
+    const paginator = res?.data && !Array.isArray(res.data) ? res.data : {};
+    const rows = Array.isArray(paginator.data) ? paginator.data
+      : Array.isArray(res?.data) ? res.data
+      : Array.isArray(res) ? res
+      : [];
+    return {
+      rows,
+      page: paginator.current_page || page,
+      lastPage: paginator.last_page || 1,
+      total: paginator.total ?? rows.length,
+      perPage: paginator.per_page || MESSAGES_PER_PAGE,
+    };
   } catch (error) {
     console.error("Error fetching messages:", error);
-    return [];
+    return empty;
   }
 }
 

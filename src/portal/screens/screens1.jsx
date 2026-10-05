@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -8,13 +9,17 @@ import { CodeChip } from "../components/ui/CodeChip";
 import { Empty } from "../components/ui/Empty";
 import { Modal } from "../components/ui/Modal";
 import { Toast } from "../components/ui/Toast";
-import { COUNTRIES, SERVICES } from "../mocks/seed";
+import { Pagination } from "../components/ui/Pagination";
 import { countryRentOf, svcPriceOf, weeklyPriceOf } from "../lib/pricing";
 import { useNumbers, useExtendNumber, useRestoreNumber, useRestoreNumberPrice, useTransferNumber, useRenameNumber, useReleaseNumber, useUpdateAutoRenew, useSendSmsFromNumber, useNumberExtensionPlans } from "../hooks/useNumbers";
 import { useMessages, useRecentMessages } from "../hooks/useMessages";
 import { useUser } from "../hooks/useUser";
 import { useBalance } from "../hooks/useBalance";
 import { DashboardAlerts } from "../components/DashboardAlerts";
+import { usePrivateCountries, usePrivatePlans, useSharedCountries, useSharedServices, useSharedRentTimes } from "../hooks/useBuy";
+import { sharedPriceOf } from "../api/buy";
+import { numberKeyOf, numberIdOfKey } from "../lib/numberKey";
+import { copyText } from "../lib/clipboard";
 
 // ============ HOME / OVERVIEW ============
 // Format expiry date from timestamp
@@ -58,15 +63,38 @@ const termLabelOf = (terms) => {
   return terms;
 };
 const StatCard = ({ label, value, sub, tone, icon }) => (
-  <Card style={{ padding: "15px 17px", flex: 1, minWidth: 0 }}>
+  <Card className="stat-card" style={{ padding: "15px 17px", minWidth: 0 }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-      <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{label}</span>
+      <span style={{ fontSize: 12.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
       <span style={{ color: tone || "var(--text-faint)", display: "flex" }}><Icon name={icon} size={16} /></span>
     </div>
-    <div className="mono tnum" style={{ fontSize: 25, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1 }}>{value}</div>
+    <div className="mono tnum stat-value" style={{ fontSize: 25, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1 }}>{value}</div>
     {sub && <div style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 6 }}>{sub}</div>}
   </Card>
 );
+
+// desktop overview: compact "Your ZEDSMS ID" chip, click to copy
+// (on phones it's copied from the menu instead — the chip is CSS-hidden there)
+const IdChip = ({ zedId }) => {
+  const [copied, setCopied] = React.useState(false);
+  const copy = () => copyText(zedId).then((ok) => {
+    if (!ok) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  });
+  return (
+    <button onClick={copy} disabled={!zedId} title="Copy your ZEDSMS ID"
+      style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "left" }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-2)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--surface)")}>
+      <span style={{ width: 32, height: 32, borderRadius: 9, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="qr" size={17} /></span>
+      <span>
+        <span style={{ display: "block", fontSize: 10.5, color: "var(--text-faint)", letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 600 }}>Your ZEDSMS ID</span>
+        <span className="mono" style={{ display: "block", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.35 }}>{zedId || "—"}</span>
+      </span>
+      <span style={{ color: copied ? "var(--success)" : "var(--text-faint)", display: "flex", flexShrink: 0, marginLeft: 2 }}><Icon name={copied ? "check" : "copy"} size={15} strokeWidth={copied ? 2.3 : 1.7} /></span>
+    </button>
+  );
+};
 
 const CodeRow = ({ m, onOpen }) => {
   const [hover, setHover] = React.useState(false);
@@ -77,9 +105,9 @@ const CodeRow = ({ m, onOpen }) => {
       {m.unread && <span style={{ position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)", width: 6, height: 6, borderRadius: 99, background: "var(--accent)" }} />}
       <ServiceAvatar color={m.color} letter={m.letter} size={40} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 550 }}>{m.from}</span>
-          <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>· {m.time}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, minWidth: 0 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 550, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.from}</span>
+          <span style={{ fontSize: 11.5, color: "var(--text-faint)", whiteSpace: "nowrap", flexShrink: 0 }}>· {m.time}</span>
         </div>
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "92%" }}>{m.body}</div>
       </div>
@@ -88,62 +116,83 @@ const CodeRow = ({ m, onOpen }) => {
   );
 };
 
-// compact quick-buy used on the overview
-const QuickBuy = ({ setRoute }) => {
-  const [type, setType] = React.useState("Shared");
-  const [svc, setSvc] = React.useState(SERVICES[0]);
-  const [country, setCountry] = React.useState(COUNTRIES[0]);
+// compact quick-buy used on the overview — live catalog, hands the picks to the Buy page
+const QuickPicker = ({ open, setOpen, children, value, disabled }) => (
+  <div style={{ position: "relative" }}>
+    <button onClick={() => !disabled && setOpen(!open)} disabled={disabled} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", height: 46, padding: "0 13px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--surface)", opacity: disabled ? 0.6 : 1 }}>
+      {value}
+      <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}><Icon name="chevD" size={16} /></span>
+    </button>
+    {open && (
+      <>
+        <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 20 }} />
+        <div style={{ position: "absolute", top: 52, left: 0, right: 0, maxHeight: 240, overflowY: "auto", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "var(--shadow-pop)", zIndex: 30, padding: 6, animation: "popIn 0.15s ease both" }}>
+          {children}
+        </div>
+      </>
+    )}
+  </div>
+);
+
+const QuickServiceLogo = ({ service, size }) => (
+  service.icon
+    ? <img src={service.icon} alt="" style={{ width: size, height: size, borderRadius: size * 0.32, objectFit: "cover", flexShrink: 0, background: "var(--surface-2)" }} />
+    : <ServiceAvatar color="var(--accent)" letter={(service.name || "?")[0].toUpperCase()} size={size} />
+);
+
+const pickerText = (text) => <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--text-muted)" }}>{text}</span>;
+
+const QuickBuy = () => {
+  const navigate = useNavigate();
+  const [type, setType] = React.useState("Private");
+  const isPrivate = type === "Private";
+  const [countryByType, setCountryByType] = React.useState({});
+  const [svcId, setSvcId] = React.useState(null);
   const [openS, setOpenS] = React.useState(false);
   const [openC, setOpenC] = React.useState(false);
-  const total = type === "Private" ? country.rent : svc.price;
 
-  const Picker = ({ open, setOpen, children, label, value }) => (
-    <div style={{ position: "relative" }}>
-      <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", height: 46, padding: "0 13px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--surface)" }}>
-        {value}
-        <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}><Icon name="chevD" size={16} /></span>
-      </button>
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 20 }} />
-          <div style={{ position: "absolute", top: 52, left: 0, right: 0, maxHeight: 240, overflowY: "auto", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "var(--shadow-pop)", zIndex: 30, padding: 6, animation: "popIn 0.15s ease both" }}>
-            {children}
-          </div>
-        </>
-      )}
-    </div>
-  );
+  const privateCountries = usePrivateCountries(isPrivate);
+  const sharedCountries = useSharedCountries(!isPrivate);
+  const countriesQ = isPrivate ? privateCountries : sharedCountries;
+  const countryList = countriesQ.data || [];
+  const country = countryByType[type] || countryList[0] || null;
+
+  const servicesQ = useSharedServices(!isPrivate ? country?.id : null);
+  const svcList = servicesQ.data || [];
+  const svc = svcList.find((s) => s.id === svcId) || svcList[0] || null;
+
+  // "from" price = the shortest plan, priced the same way the Buy page does
+  const privatePlans = usePrivatePlans(isPrivate ? country?.id : null);
+  const rentTimes = useSharedRentTimes(!isPrivate);
+  const cheapest = isPrivate ? (privatePlans.data || [])[0] : (rentTimes.data || [])[0];
+  const fromPrice = !cheapest ? null : isPrivate ? cheapest.total : svc ? sharedPriceOf(svc, cheapest.days) : null;
+  const fromLabel = cheapest ? (isPrivate ? cheapest.label : cheapest.name) : null;
+
+  const pickCountry = (c) => { setCountryByType((m) => ({ ...m, [type]: c })); setSvcId(null); setOpenC(false); };
+  const ready = !!country && (isPrivate || !!svc);
+  const goBuy = () => {
+    if (!ready) return;
+    const qs = new URLSearchParams({ type: isPrivate ? "private" : "shared", country: country.iso });
+    if (!isPrivate) qs.set("service", String(svc.id));
+    navigate(`/app/buy?${qs}`);
+  };
 
   return (
     <Card style={{ padding: 18 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 15 }}>
         <div style={{ width: 30, height: 30, borderRadius: 9, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="plus" size={18} strokeWidth={2} /></div>
         <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Quick buy</h3>
-        <Badge tone="success" dot className="tnum" >{COUNTRIES.reduce((a, c) => a + c.avail, 0).toLocaleString()} available</Badge>
       </div>
 
       <div style={{ display: "flex", gap: 4, padding: 3, background: "var(--surface-2)", borderRadius: 10, marginBottom: 15 }}>
-        {["Shared", "Private"].map((tk) => (
-          <button key={tk} onClick={() => setType(tk)} style={{ flex: 1, height: 32, borderRadius: 8, fontSize: 12.5, fontWeight: 550,
+        {["Private", "Shared"].map((tk) => (
+          <button key={tk} onClick={() => { setType(tk); setOpenC(false); setOpenS(false); }} style={{ flex: 1, height: 32, borderRadius: 8, fontSize: 12.5, fontWeight: 550,
             background: type === tk ? "var(--surface)" : "transparent", color: type === tk ? "var(--text)" : "var(--text-muted)",
             boxShadow: type === tk ? "var(--shadow-sm)" : "none", border: type === tk ? "1px solid var(--border)" : "1px solid transparent" }}>{tk}</button>
         ))}
       </div>
 
-      {type === "Shared" ? (
-        <>
-          <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Service</label>
-          <Picker open={openS} setOpen={setOpenS} value={<><ServiceAvatar color={svc.color} letter={svc.letter} size={24} /><span style={{ fontSize: 13.5, fontWeight: 500 }}>{svc.name}</span></>}>
-            {SERVICES.map((s) => (
-              <button key={s.id} onClick={() => { setSvc(s); setOpenS(false); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 9px", borderRadius: 9, background: svc.id === s.id ? "var(--surface-2)" : "transparent" }}>
-                <ServiceAvatar color={s.color} letter={s.letter} size={26} />
-                <span style={{ fontSize: 13.5, fontWeight: 450 }}>{s.name}</span>
-                <span className="mono tnum" style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--text-muted)" }}>${s.price.toFixed(2)}</span>
-              </button>
-            ))}
-          </Picker>
-        </>
-      ) : (
+      {isPrivate && (
         <div style={{ display: "flex", gap: 8, padding: "10px 12px", borderRadius: 11, background: "var(--surface-2)", marginBottom: 2 }}>
           <span style={{ color: "var(--text-faint)", flexShrink: 0, marginTop: 1 }}><Icon name="info" size={15} /></span>
           <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>A private number works with <strong style={{ color: "var(--text)" }}>any service</strong>. Priced by country.</span>
@@ -151,24 +200,48 @@ const QuickBuy = ({ setRoute }) => {
       )}
 
       <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", margin: "13px 0 6px" }}>Country</label>
-      <Picker open={openC} setOpen={setOpenC} value={<><FlagAvatar iso={country.iso} size={24} /><span style={{ fontSize: 13.5, fontWeight: 500 }}>{country.name}</span></>}>
-        {COUNTRIES.map((c) => (
-          <button key={c.iso} onClick={() => { setCountry(c); setOpenC(false); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 9px", borderRadius: 9, background: country.iso === c.iso ? "var(--surface-2)" : "transparent" }}>
+      <QuickPicker open={openC} setOpen={setOpenC} disabled={countryList.length === 0}
+        value={country
+          ? <><FlagAvatar iso={country.iso} size={24} /><span style={{ fontSize: 13.5, fontWeight: 500 }}>{country.name}</span></>
+          : pickerText(countriesQ.isLoading ? "Loading countries…" : countriesQ.error ? "Couldn't load countries" : "No countries available")}>
+        {countryList.map((c) => (
+          <button key={c.id} onClick={() => pickCountry(c)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 9px", borderRadius: 9, background: country?.id === c.id ? "var(--surface-2)" : "transparent" }}>
             <FlagAvatar iso={c.iso} size={26} />
             <span style={{ fontSize: 13.5, fontWeight: 450 }}>{c.name}</span>
-            <span className="mono tnum" style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--text-faint)" }}>{type === "Private" ? `$${c.rent.toFixed(2)}/wk` : c.avail.toLocaleString()}</span>
+            {country?.id === c.id && <span style={{ marginLeft: "auto", color: "var(--accent)", display: "flex" }}><Icon name="check" size={15} strokeWidth={2.4} /></span>}
           </button>
         ))}
-      </Picker>
+      </QuickPicker>
+
+      {!isPrivate && (
+        <>
+          <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", margin: "13px 0 6px" }}>Service</label>
+          <QuickPicker open={openS} setOpen={setOpenS} disabled={svcList.length === 0}
+            value={svc
+              ? <><QuickServiceLogo service={svc} size={24} /><span style={{ fontSize: 13.5, fontWeight: 500 }}>{svc.name}</span></>
+              : pickerText(!country || servicesQ.isLoading ? "Loading services…" : servicesQ.error ? "Couldn't load services" : `No services in ${country.name}`)}>
+            {svcList.map((sv) => (
+              <button key={sv.id} onClick={() => { setSvcId(sv.id); setOpenS(false); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 9px", borderRadius: 9, background: svc?.id === sv.id ? "var(--surface-2)" : "transparent" }}>
+                <QuickServiceLogo service={sv} size={26} />
+                <span style={{ fontSize: 13.5, fontWeight: 450 }}>{sv.name}</span>
+                <span className="mono tnum" style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)" }}>${sv.pricePerDay.toFixed(2)}/day</span>
+              </button>
+            ))}
+          </QuickPicker>
+        </>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "16px 0 13px", padding: "12px 14px", borderRadius: 11, background: "var(--surface-2)" }}>
-        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Total</span>
-        <span className="mono tnum" style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em" }}>${total.toFixed(2)}</span>
+        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>From{fromLabel && <span style={{ color: "var(--text-faint)" }}> · {fromLabel}</span>}</span>
+        <span className="mono tnum" style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em" }}>{fromPrice != null ? `$${fromPrice.toFixed(2)}` : "—"}</span>
       </div>
-      <Button full size="lg" icon="cart" onClick={() => setRoute("buy")}>{type === "Private" ? "Buy private number" : `Buy ${svc.name} number`}</Button>
+      <Button full size="lg" onClick={goBuy} disabled={!ready}>Buy number</Button>
     </Card>
   );
 };
+
+// how many expiring numbers the overview lists before "+N more"
+const EXPIRING_SHOWN = 5;
 
 const HomeScreen = ({ setRoute, openNumber }) => {
   // Live data via React Query — this screen is the wired-up template; other
@@ -217,8 +290,8 @@ const HomeScreen = ({ setRoute, openNumber }) => {
         mobile_number_type_id: typeId,
         type: isPrivate ? "Private" : "Shared",
         country: n.country || "GB",
-        service: n.service_name || (isPrivate ? "Private" : "SMS"),
-        service_provider: n.service_provider || { name: isPrivate ? "Private" : "SMS" },
+        // shared numbers are bought for one service; private ones work with any
+        service: n.service_name || null,
         number: n.number || n.mobile_number || ""
       };
     });
@@ -227,8 +300,6 @@ const HomeScreen = ({ setRoute, openNumber }) => {
   const active = numbers.filter((n) => n.status === "active");
   const expiring = active.filter((n) => n.days <= 50);
   const unreadCodes = messages.filter((m) => m.unread).length;
-  const [copied, setCopied] = React.useState(false);
-  const copyId = () => { navigator.clipboard?.writeText(user?.zedId); setCopied(true); setTimeout(() => setCopied(false), 1600); };
 
   const doExtend = (number, rentTimeId) => {
     if (number) {
@@ -256,29 +327,14 @@ const HomeScreen = ({ setRoute, openNumber }) => {
       {/* Announcements & User Alerts - Show at top during loading */}
       <DashboardAlerts />
 
-      {/* greeting */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h2 style={{ margin: "0 0 3px", fontSize: 23, fontWeight: 600, letterSpacing: "-0.025em" }}>Welcome back</h2>
-          <p style={{ margin: 0, fontSize: 13.5, color: "var(--text-muted)" }}>You have {unreadCodes} new verification {unreadCodes === 1 ? "code" : "codes"} waiting.</p>
-        </div>
-        <button onClick={copyId} title="Copy your ZEDSMS ID" style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "left" }}
-          onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface-2)"} onMouseLeave={(e) => e.currentTarget.style.background = "var(--surface)"}>
-          <span style={{ width: 32, height: 32, borderRadius: 9, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="qr" size={17} /></span>
-          <span>
-            <span style={{ display: "block", fontSize: 10.5, color: "var(--text-faint)", letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 600 }}>Your ZEDSMS ID</span>
-            <span className="mono" style={{ display: "block", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.35 }}>{user.zedId}</span>
-          </span>
-          <span style={{ color: copied ? "var(--success)" : "var(--text-faint)", display: "flex", flexShrink: 0, marginLeft: 2 }}><Icon name={copied ? "check" : "copy"} size={15} strokeWidth={copied ? 2.3 : 1.7} /></span>
-        </button>
+      <div className="desktop-only" style={{ display: "flex", justifyContent: "flex-end" }}>
+        <IdChip zedId={user?.zedId ? String(user.zedId) : ""} />
       </div>
 
       {/* stats */}
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+      <div className="stats-grid">
         <StatCard label="Balance" value={`$${(balanceData?.amount || 0).toFixed(2)}`} sub="Across all wallets" icon="wallet" tone="var(--accent)" />
         <StatCard label="Active numbers" value={active.length} sub={`${expiring.length} expiring soon`} icon="grid" tone="var(--success)" />
-        <StatCard label="Recent messages" value={messages.filter((m) => /min|hr/.test(m.time)).length} sub={`${unreadCodes} unread`} icon="msg" tone="var(--accent)" />
-        <StatCard label="Spent this week" value="$3.95" sub="6 purchases" icon="receipt" tone="var(--text-faint)" />
       </div>
 
       {/* main grid */}
@@ -299,54 +355,56 @@ const HomeScreen = ({ setRoute, openNumber }) => {
 
         {/* right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <QuickBuy setRoute={setRoute} />
+          <QuickBuy />
 
           <Card style={{ overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 10px" }}>
-              <div>
-                <h3 style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Expiring Soon</h3>
-                <div style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{expiring.length} number{expiring.length !== 1 ? "s" : ""} (within 50 days)</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "16px 18px 12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>Expiring soon</h3>
+                {expiring.length > 0 && <Badge tone="neutral" className="tnum">{expiring.length}</Badge>}
               </div>
-              <button onClick={() => setRoute("numbers")} style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>View all</button>
+              <button onClick={() => setRoute("numbers")} style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)", display: "flex", alignItems: "center", gap: 3 }}>View all <Icon name="chevR" size={14} /></button>
             </div>
-            <div style={{ padding: "8px 10px 12px", maxHeight: "400px", overflowY: "auto" }}>
-              {expiring.length === 0 ? (
-                <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--text-faint)", fontSize: 13 }}>
-                  No numbers expiring within 50 days
-                </div>
-              ) : (
-                expiring.sort((a, b) => (a.days || 0) - (b.days || 0)).map((n) => {
+            {expiring.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "18px 18px 24px", textAlign: "center" }}>
+                <span style={{ width: 36, height: 36, borderRadius: 11, background: "var(--success-soft)", color: "var(--success)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="check" size={18} strokeWidth={2.2} /></span>
+                <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Nothing expires in the next 50 days</span>
+              </div>
+            ) : (
+              <div style={{ padding: "0 18px 6px" }}>
+                {/* soonest first; the rest are one tap away on My Numbers */}
+                {[...expiring].sort((a, b) => (a.days || 0) - (b.days || 0)).slice(0, EXPIRING_SHOWN).map((n) => {
                   const countryIso = n.country?.iso || n.iso || "GB";
                   const phoneNumber = n.mobile_number || n.phone_number || n.number;
-                  const serviceName = n.service_provider?.name || n.service || "SMS";
-                  const numberType = n.mobile_number_type?.name || n.type || "Shared";
-                  const daysLeft = n.rent_time?.days || n.days || 10;
-                  const expiryDate = new Date(n.expiresAt || n.expires_at);
-                  const formattedDate = expiryDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                  // "WhatsApp · Shared" / "Private" — never a placeholder service name
+                  const subtitle = [n.type === "Shared" ? n.service : null, n.type].filter(Boolean).join(" · ");
+                  // n.days is the time left (from expiry); rent_time.days is the plan length
+                  const daysLeft = n.days;
+                  const tone = daysLeft <= 3 ? "danger" : daysLeft <= 7 ? "warning" : "neutral";
+                  const left = daysLeft <= 0 ? "Today" : daysLeft === 1 ? "Tomorrow" : `${daysLeft}d left`;
+                  const expiresOn = new Date(n.expiresAt || n.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
                   return (
-                    <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 10px", borderRadius: 11, marginBottom: 6, background: "var(--surface-2)", justifyContent: "space-between" }}>
-                      <button onClick={() => openNumber(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, padding: 0, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
-                        <FlagAvatar iso={countryIso} size={36} />
+                    <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderTop: "1px solid var(--border)" }}>
+                      <button onClick={() => openNumber(n.id)} style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, textAlign: "left" }}>
+                        <FlagAvatar iso={countryIso} size={32} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="mono tnum" style={{ fontSize: 13.5, fontWeight: 500 }}>{phoneNumber}</div>
-                          <div style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{serviceName} · {numberType}</div>
-                          <div style={{ fontSize: 10.5, color: "var(--text-faint)", marginTop: 2 }}>Expires {formattedDate}</div>
+                          <div className="mono tnum" style={{ fontSize: 13.5, fontWeight: 550, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{phoneNumber}</div>
+                          <div style={{ fontSize: 11.5, color: "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{subtitle}</div>
                         </div>
                       </button>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <Badge tone={daysLeft <= 3 ? "danger" : daysLeft <= 5 ? "warning" : "accent"} className="tnum">{daysLeft}d</Badge>
-                        <button onClick={() => setExtendingNumber(n)} title="Extend this number" style={{ padding: "6px 11px", borderRadius: 9, background: "var(--accent)", color: "#fff", border: "none", fontSize: 12.5, fontWeight: 550, cursor: "pointer", flexShrink: 0, transition: "filter 0.16s" }}
-                          onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.08)"}
-                          onMouseLeave={(e) => e.currentTarget.style.filter = "none"}>
-                          Extend
-                        </button>
-                      </div>
+                      <span title={`Expires ${expiresOn}`} style={{ flexShrink: 0 }}><Badge tone={tone} className="tnum">{left}</Badge></span>
+                      <Button variant="soft" size="sm" onClick={() => setExtendingNumber(n)} title="Extend this number">Extend</Button>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+                {expiring.length > EXPIRING_SHOWN && (
+                  <button onClick={() => setRoute("numbers")} className="tnum" style={{ width: "100%", padding: "11px 0 8px", borderTop: "1px solid var(--border)", fontSize: 12.5, fontWeight: 500, color: "var(--text-muted)" }}>
+                    +{expiring.length - EXPIRING_SHOWN} more expiring
+                  </button>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -702,18 +760,21 @@ function ComposeModal({ number, open, onClose, onSend, isSubmitting = false }) {
   );
 }
 
-const NumbersScreen = ({ initialNumberId, clearInitial }) => {
+const NumbersScreen = () => {
+  const navigate = useNavigate();
+  const { numberKey } = useParams();
   const [filter, setFilter] = React.useState("active");
   const [typeFilter, setTypeFilter] = React.useState("all"); // 'all' | 'Private' | 'Shared'
-  const { data: apiNumbers = [] } = useNumbers();
+  const { data: apiNumbers = [], isLoading: numbersLoading } = useNumbers();
   const { data: user } = useUser();
   const { data: balanceData } = useBalance();
-  const [selected, setSelected] = React.useState(initialNumberId);
   const [query, setQuery] = React.useState("");
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null); // 'renew' | 'restore' | 'transfer' | 'rename' | 'release' | 'compose'
   const [msgTab, setMsgTab] = React.useState("inbox"); // 'inbox' | 'sent'
   const [msgQuery, setMsgQuery] = React.useState("");
+  const [msgPage, setMsgPage] = React.useState(1);
+  const msgCardRef = React.useRef(null);
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
   const showToast = (msg, tone = "success") => { clearTimeout(toastTimer.current); setToast({ msg, tone }); toastTimer.current = setTimeout(() => setToast(null), 2600); };
@@ -816,18 +877,15 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
     });
   }, [apiNumbers]);
 
-  // the "open this number" request is one-shot: consume it so later visits start fresh
-  React.useEffect(() => {
-    if (initialNumberId) clearInitial?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
+  // the open number lives in the URL; once one is open, switching numbers replaces
+  // the history entry so Back returns to the list instead of every number viewed
+  const openNumber = (n) => navigate(`/app/numbers/${numberKeyOf(n.uid)}`, { replace: !!numberKey });
+  const backToList = () => navigate("/app/numbers");
 
-  // Set initial selection once
+  // on small screens the detail is its own page, so start it at the top
   React.useEffect(() => {
-    if (!selected && numbers.length > 0) {
-      setSelected(initialNumberId || numbers[0].uid);
-    }
-  }, [numbers, selected, initialNumberId]);
+    if (numberKey && window.matchMedia("(max-width: 1080px)").matches) window.scrollTo(0, 0);
+  }, [numberKey]);
 
   const list = numbers
     .filter((n) => {
@@ -837,11 +895,21 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
     })
     .filter((n) => (typeFilter === "all" ? true : n.type === typeFilter))
     .filter((n) => n.number.includes(query) || n.country.toLowerCase().includes(query.toLowerCase()) || (n.service || "").toLowerCase().includes(query.toLowerCase()) || (n.label || "").toLowerCase().includes(query.toLowerCase()));
-  // selected is a uid; plain ids still come in from the home screen shortcuts
-  const current = numbers.find((n) => n.uid === selected) || numbers.find((n) => n.id === selected) || list[0];
+  // keys are uids; plain ids still come in from the home screen shortcuts.
+  // With nothing in the URL the desktop split view previews the first number.
+  const current = numberKey
+    ? numbers.find((n) => n.uid === numberIdOfKey(numberKey)) || numbers.find((n) => String(n.id) === numberKey)
+    : list[0];
 
   // Get messages for current number
-  const { data: rawMessages = [], isLoading: messagesLoading, isFetching: messagesFetching } = useMessages(current?.id);
+  const { data: msgData, isLoading: messagesLoading, isFetching: messagesFetching } = useMessages(current?.id, msgPage);
+  const rawMessages = React.useMemo(() => msgData?.rows || [], [msgData]);
+  const msgLastPage = msgData?.lastPage || 1;
+  const msgTotal = msgData?.total || 0;
+  const goMsgPage = (p) => {
+    setMsgPage(p);
+    msgCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // Normalize messages from API - separate incoming and outgoing
   const { incomingMessages, outgoingMessages } = React.useMemo(() => {
@@ -898,7 +966,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
   const sentThread = outgoingMessages;
   const isPrivate = !!current && current.type === "Private";
   // reset the message view whenever the selected number changes
-  React.useEffect(() => { setMsgTab("inbox"); setMsgQuery(""); }, [selected]);
+  React.useEffect(() => { setMsgTab("inbox"); setMsgQuery(""); setMsgPage(1); }, [numberKey]);
 
   // Initialize mutations and queries
   const extendMutation = useExtendNumber();
@@ -973,6 +1041,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
         onSuccess: () => {
           setModal(null);
           showToast(`${lbl} released`, "danger");
+          backToList();
         },
         onError: (err) => showToast(err?.message || "Failed to release number", "danger")
       });
@@ -1044,9 +1113,9 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
 
   return (
     <>
-    <div className="view-enter numbers-layout" style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 18, alignItems: "start" }}>
+    <div className="view-enter numbers-layout" data-view={numberKey ? "detail" : "list"} style={{ display: "grid", gridTemplateColumns: "340px minmax(0, 1fr)", gap: 18, alignItems: "start" }}>
       {/* list pane */}
-      <Card style={{ overflow: "hidden", position: "sticky", top: 82 }}>
+      <Card className="numbers-list" style={{ overflow: "hidden", position: "sticky", top: 82 }}>
         <div style={{ padding: 12, borderBottom: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 11px", borderRadius: 9, background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: 10, color: "var(--text-faint)" }}>
             <Icon name="search" size={15} />
@@ -1073,12 +1142,13 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
             );
           })()}
         </div>
-        <div style={{ maxHeight: "calc(100vh - 240px)", overflowY: "auto", padding: 8 }}>
+        <div className="numbers-list-scroll" style={{ maxHeight: "calc(100vh - 240px)", overflowY: "auto", padding: 8 }}>
           {list.length === 0 && <Empty icon="grid" label="No numbers here" />}
           {list.map((n) => {
-            const isSel = current && n.uid === current.uid;
+            // only mark a number selected when its page is open, not the desktop preview
+            const isSel = !!numberKey && current && n.uid === current.uid;
             return (
-              <button key={n.uid} onClick={() => setSelected(n.uid)} style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "11px 11px", borderRadius: 11, textAlign: "left", marginBottom: 2,
+              <button key={n.uid} onClick={() => openNumber(n)} style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "11px 11px", borderRadius: 11, textAlign: "left", marginBottom: 2,
                 background: isSel ? "var(--accent-soft)" : "transparent", border: isSel ? "1px solid var(--accent-border)" : "1px solid transparent", transition: "background 0.12s" }}
                 onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.background = "var(--surface-2)"; }} onMouseLeave={(e) => { if (!isSel) e.currentTarget.style.background = "transparent"; }}>
                 <FlagAvatar iso={n.iso || "GB"} size={38} />
@@ -1120,24 +1190,33 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
       </Card>
 
       {/* detail pane */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        {!current ? <Card style={{ padding: 18 }}><Empty icon="grid" label="No number selected" /></Card> : (
+      <div className="numbers-detail" style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+        <button onClick={backToList} className="numbers-back" style={{ alignItems: "center", gap: 4, alignSelf: "flex-start", height: 32, padding: "0 10px 0 4px", marginBottom: -4, borderRadius: 9, fontSize: 13.5, fontWeight: 500, color: "var(--text-muted)" }}>
+          <Icon name="chevL" size={18} /> All numbers
+        </button>
+        {numbersLoading ? <div className="skel" style={{ height: 180 }} />
+          : !current ? <Card style={{ padding: 18 }}><Empty icon="grid" label={numberKey ? "This number is no longer in your account" : "No number selected"} /></Card> : (
           <>
             <Card style={{ padding: 18 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                <FlagAvatar iso={current?.iso || "GB"} size={50} />
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <FlagAvatar iso={current?.iso || "GB"} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <span className="mono tnum" style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.01em" }}>{current.number}</span>
-                    <button onClick={() => { navigator.clipboard?.writeText(current.number.replace(/\s/g, "")); showToast("Number copied"); }} title="Copy number" style={{ color: "var(--text-faint)", display: "flex" }}><Icon name="copy" size={16} /></button>
-                    {current.label && <Badge tone="accent">{current.label}</Badge>}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 24 }}>
+                    <span className="mono tnum" style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em", overflowWrap: "anywhere" }}>{current.number}</span>
+                    <button onClick={() => copyText(current.number.replace(/\s/g, "")).then((ok) => showToast(ok ? "Number copied" : "Couldn't copy — press and hold to copy instead", ok ? "success" : "danger"))} title="Copy number" style={{ color: "var(--text-faint)", display: "flex", flexShrink: 0 }}><Icon name="copy" size={15} /></button>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                     {current.service && <Badge tone="neutral">{current.service}</Badge>}
                     <span style={{ fontSize: 12, color: "var(--text-faint)" }}>{current.country}</span>
                   </div>
+                  {current.label && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6, fontSize: 12.5, fontWeight: 500, color: "var(--accent)", minWidth: 0 }}>
+                      <Icon name="user" size={13} strokeWidth={2} />
+                      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{current.label}</span>
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", gap: 8, position: "relative" }}>
+                <div className="num-actions" style={{ display: "flex", gap: 8, position: "relative" }}>
                   {isLapsed(current.status)
                     ? <Button variant="ghost" size="sm" icon="refresh" onClick={() => setModal("restore")} title={current.canRestore ? `Reactivate on the same number — ${current.restoreDaysLeft} day${current.restoreDaysLeft === 1 ? "" : "s"} left` : `The ${RESTORE_WINDOW_DAYS}-day reactivation window has closed`}>Reactivate</Button>
                     : <Button variant="ghost" size="sm" icon="refresh" onClick={() => setModal("renew")}>Extend</Button>}
@@ -1145,7 +1224,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                   {menuOpen && (
                     <>
                       <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 60 }} />
-                      <div style={{ position: "absolute", top: 44, right: 0, width: 252, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 13, boxShadow: "var(--shadow-pop)", zIndex: 70, padding: 6, animation: "popIn 0.15s ease both" }}>
+                      <div style={{ position: "absolute", top: 44, right: 0, width: 252, maxWidth: "calc(100vw - 32px)", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 13, boxShadow: "var(--shadow-pop)", zIndex: 70, padding: 6, animation: "popIn 0.15s ease both" }}>
                         <MenuRow icon="user" label="Rename / add label" sub={current.label || "No label set"} onClick={() => { setMenuOpen(false); setModal("rename"); }} />
                         <MenuRow icon="refresh" label="Auto-renew" sub={autoRenewMutation.isPending ? "Updating..." : (current.autoRenew ? "On — renews before expiry" : "Off")} onClick={toggleAuto} disabled={autoRenewMutation.isPending}
                           right={autoRenewMutation.isPending ? (
@@ -1166,17 +1245,46 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                   )}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 22, marginTop: 16, paddingTop: 15, borderTop: "1px solid var(--border)", flexWrap: "wrap" }}>
-                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>{current.status === "expired" || current.status === "disconnected" ? "Expired on" : "Expires in"}</div><div className="mono tnum" style={{ fontSize: 15, fontWeight: 600, color: current.status === "expired" || current.status === "disconnected" ? "var(--danger)" : current.days <= 7 ? "var(--warning)" : "var(--text)" }}>{current.status === "expired" || current.status === "disconnected" ? formatExpiryDate(current.expiresAt) : current.days + " days"}</div>{current.status !== "expired" && current.status !== "disconnected" && <div className="tnum" style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>{formatExpiryDate(current.expiresAt)}</div>}{isLapsed(current.status) && <div className="tnum" style={{ fontSize: 11.5, color: current.canRestore ? "var(--warning)" : "var(--text-faint)", marginTop: 2 }}>{current.canRestore ? `Reactivate within ${current.restoreDaysLeft} day${current.restoreDaysLeft === 1 ? "" : "s"}` : "Reactivation window closed"}</div>}</div>
-                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>Status</div><div style={{ fontSize: 13.5, fontWeight: 550, color: current.status === "expired" || current.status === "disconnected" ? "var(--text-muted)" : "var(--success)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: 99, background: current.status === "expired" || current.status === "disconnected" ? "var(--text-faint)" : "var(--success)" }} />{current.status === "expired" || current.status === "disconnected" ? "Inactive" : "Active"}</div></div>
-                <div><div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 3 }}>Auto-renew</div><div style={{ fontSize: 13.5, fontWeight: 550, color: current.autoRenew ? "var(--success)" : "var(--text-muted)" }}>{current.autoRenew ? "On" : "Off"}</div></div>
-              </div>
+              {(() => {
+                const lapsed = isLapsed(current.status);
+                const cell = (first) => ({ minWidth: 0, padding: first ? "0 12px 0 0" : "0 12px", borderLeft: first ? "none" : "1px solid var(--border)" });
+                const label = { fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4, whiteSpace: "nowrap" };
+                const value = { fontSize: 15, fontWeight: 600, lineHeight: "20px", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" };
+                const sub = { fontSize: 11.5, color: "var(--text-faint)", marginTop: 3, lineHeight: 1.35 };
+                return (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginTop: 16, paddingTop: 15, borderTop: "1px solid var(--border)" }}>
+                    <div style={cell(true)}>
+                      <div style={label}>{lapsed ? "Expired on" : "Expires in"}</div>
+                      <div className="mono tnum" style={{ ...value, color: lapsed ? "var(--danger)" : current.days <= 7 ? "var(--warning)" : "var(--text)" }}>
+                        {lapsed ? formatExpiryDate(current.expiresAt) : `${current.days} day${current.days === 1 ? "" : "s"}`}
+                      </div>
+                      {lapsed
+                        ? <div className="tnum" style={{ ...sub, color: current.canRestore ? "var(--warning)" : "var(--text-faint)" }}>{current.canRestore ? `Reactivate within ${current.restoreDaysLeft} day${current.restoreDaysLeft === 1 ? "" : "s"}` : "Reactivation window closed"}</div>
+                        : <div className="tnum" style={sub}>{formatExpiryDate(current.expiresAt)}</div>}
+                    </div>
+                    <div style={cell(false)}>
+                      <div style={label}>Status</div>
+                      <div style={{ ...value, color: lapsed ? "var(--text-muted)" : "var(--success)" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 99, flexShrink: 0, background: lapsed ? "var(--text-faint)" : "var(--success)" }} />
+                        {lapsed ? "Inactive" : "Active"}
+                      </div>
+                    </div>
+                    <div style={cell(false)}>
+                      <div style={label}>Auto-renew</div>
+                      <div style={{ ...value, color: current.autoRenew ? "var(--success)" : "var(--text-muted)" }}>
+                        <Icon name="refresh" size={14} strokeWidth={2} />
+                        {current.autoRenew ? "On" : "Off"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </Card>
 
-            <Card style={{ overflow: "hidden" }}>
+            <Card ref={msgCardRef} style={{ overflow: "hidden", scrollMarginTop: 76 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
                 <div style={{ display: "flex", gap: 4, padding: 3, background: "var(--surface-2)", borderRadius: 10 }}>
-                  <MsgTab id="inbox" label="Inbox" count={thread.length} icon="inbox" />
+                  <MsgTab id="inbox" label="Inbox" count={isPrivate ? thread.length : msgTotal} icon="inbox" />
                   {isPrivate && <MsgTab id="sent" label="Sent" count={sentThread.length} icon="send" />}
                 </div>
                 {/* background refresh, with content already on screen */}
@@ -1186,10 +1294,10 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                     Updating
                   </span>
                 )}
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="msg-toolbar-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, height: 34, padding: "0 11px", borderRadius: 9, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-faint)" }}>
                     <Icon name="search" size={14} />
-                    <input value={msgQuery} onChange={(e) => setMsgQuery(e.target.value)} placeholder={msgTab === "sent" ? "Search sent" : "Search messages"} style={{ border: "none", background: "transparent", outline: "none", color: "var(--text)", fontSize: 12.5, width: 110 }} />
+                    <input value={msgQuery} onChange={(e) => setMsgQuery(e.target.value)} placeholder={msgTab === "sent" ? "Search sent" : "Search messages"} style={{ border: "none", background: "transparent", outline: "none", color: "var(--text)", fontSize: 12.5, width: "100%", minWidth: 80, maxWidth: 160 }} />
                   </div>
                   {isPrivate
                     ? <Button size="sm" icon="send" onClick={() => setModal("compose")} disabled={current.status === "expired"}>Send SMS</Button>
@@ -1209,7 +1317,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                           <span>Newest first</span>
                         </div>
                       )}
-                      <div style={{ maxHeight: "52vh", overflowY: "auto", padding: "6px 8px 10px" }}>
+                      <div className="msg-scroll" style={{ maxHeight: "52vh", overflowY: "auto", padding: "6px 8px 10px" }}>
                         {messagesLoading ? <MessageSkeleton rows={3} />
                           : all.length === 0 ? <Empty icon="send" label="No sent messages yet — tap Send SMS to start a conversation" />
                           : rows.length === 0 ? <Empty icon="search" label={`No sent messages match “${msgQuery}”`} />
@@ -1241,7 +1349,7 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                         <span>Newest first</span>
                       </div>
                     )}
-                    <div style={{ maxHeight: "52vh", overflowY: "auto", padding: "6px 8px 10px" }}>
+                    <div className="msg-scroll" style={{ maxHeight: "52vh", overflowY: "auto", padding: "6px 8px 10px" }}>
                       {messagesLoading ? <MessageSkeleton />
                         : all.length === 0 ? <Empty icon="msg" label="No messages yet — codes appear here instantly" />
                         : rows.length === 0 ? <Empty icon="search" label={`No messages match “${msgQuery}”`} />
@@ -1278,6 +1386,14 @@ const NumbersScreen = ({ initialNumberId, clearInitial }) => {
                   </>
                 );
               })()}
+              {msgLastPage > 1 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "12px 14px", borderTop: "1px solid var(--border)" }}>
+                  <span className="tnum" style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+                    Page <span style={{ fontWeight: 600, color: "var(--text)" }}>{msgPage}</span> of {msgLastPage} · {msgTotal} messages
+                  </span>
+                  <Pagination page={msgPage} lastPage={msgLastPage} onChange={goMsgPage} />
+                </div>
+              )}
             </Card>
           </>
         )}

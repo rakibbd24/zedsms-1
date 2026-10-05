@@ -1,5 +1,6 @@
 import React from "react";
 import { Icon } from "../Icon";
+import { copyText } from "../../lib/clipboard";
 
 // Copyable verification code chip — the centerpiece UX
 export const CodeChip = ({ code, size = "md" }) => {
@@ -7,9 +8,11 @@ export const CodeChip = ({ code, size = "md" }) => {
   if (!code) return null;
   const copy = (e) => {
     e.stopPropagation();
-    navigator.clipboard?.writeText(code).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1400);
+    copyText(code).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    });
   };
   const dims = size === "lg" ? { h: 40, fs: 18, px: 14 } : { h: 32, fs: 14.5, px: 11 };
   return (
