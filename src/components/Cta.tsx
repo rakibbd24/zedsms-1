@@ -1,9 +1,10 @@
-import imgBg from "../assets/cta/ac44e.webp";
-import imgArrow from "../assets/cta/5c3c7.svg";
-import imgAndroid from "../assets/cta/aa005.svg";
-import imgApple from "../assets/cta/9e13c.svg";
-import imgDesktop from "../assets/cta/3df97.svg";
-import imgTelegram from "../assets/cta/3b833.svg";
+import { Link } from "react-router-dom";
+import imgBg from "../assets/cta/cta-background.webp";
+import imgArrow from "../assets/cta/icon-arrow-right-blue.svg";
+import imgAndroid from "../assets/cta/icon-android.svg";
+import imgApple from "../assets/cta/icon-apple.svg";
+import imgDesktop from "../assets/cta/icon-desktop.svg";
+import imgTelegram from "../assets/cta/icon-telegram.svg";
 
 export default function Cta() {
   return (
@@ -27,20 +28,20 @@ export default function Cta() {
           </div>
 
           <div className="flex flex-col items-center gap-4">
-            <a
-              href="#"
+            <Link
+              to="/auth/signup"
               className="lift inline-flex items-center justify-center gap-2.5 bg-white hover:bg-[#eef1fb] border border-[#e6e6e6] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-[#2155f5] whitespace-nowrap"
             >
               Get started free
               <img src={imgArrow} alt="" className="size-4" />
-            </a>
+            </Link>
             <div className="flex flex-col items-center gap-2.5">
               <span className="font-sans text-sm leading-5 text-white/70">
                 Phone, PC, Mac, Telegram bot apps
               </span>
               <div className="flex items-center gap-2">
-                {[imgAndroid, imgApple, imgDesktop, imgTelegram].map((src, i) => (
-                  <img key={i} src={src} alt="" className="size-6" />
+                {[[imgAndroid, "Android"], [imgApple, "iPhone and Mac"], [imgDesktop, "Desktop"], [imgTelegram, "Telegram bot"]].map(([src, label]) => (
+                  <img key={label} src={src} alt={label} title={label} className="size-6" />
                 ))}
               </div>
             </div>

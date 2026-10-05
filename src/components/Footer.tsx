@@ -1,23 +1,27 @@
-import imgLogoMark from "../assets/footer/b8b96.svg";
-import imgLogoText from "../assets/footer/f8fd8.svg";
-import imgInstagram from "../assets/footer/e6509.svg";
-import imgX from "../assets/footer/4db67.svg";
-import imgYoutube from "../assets/footer/81a88.svg";
-import imgTiktok from "../assets/footer/66ea5.svg";
-import imgAppStore from "../assets/footer/6219b.svg";
-import imgGooglePlay from "../assets/footer/f38c8.svg";
+import { Link } from "react-router-dom";
+import imgLogoMark from "../assets/footer/logo-mark.svg";
+import imgLogoText from "../assets/footer/logo-wordmark.svg";
+import imgInstagram from "../assets/footer/social-instagram.svg";
+import imgX from "../assets/footer/social-x.svg";
+import imgYoutube from "../assets/footer/social-youtube.svg";
+import imgTiktok from "../assets/footer/social-tiktok.svg";
+import imgAppStore from "../assets/footer/badge-app-store.svg";
+import imgGooglePlay from "../assets/footer/badge-google-play.svg";
 
+// Fill in each profile URL to show its icon — icons without one stay hidden rather
+// than linking to "#".
 const socials = [
-  { icon: imgInstagram, label: "Instagram" },
-  { icon: imgX, label: "X" },
-  { icon: imgYoutube, label: "YouTube" },
-  { icon: imgTiktok, label: "TikTok" },
-];
+  { icon: imgInstagram, label: "Instagram", url: "" },
+  { icon: imgX, label: "X", url: "" },
+  { icon: imgYoutube, label: "YouTube", url: "" },
+  { icon: imgTiktok, label: "TikTok", url: "" },
+].filter((s) => s.url);
 
+// Blog and Careers had no pages behind them, so they're left out until they exist.
 const linkGroups = [
-  { title: "COMPANY", links: [{ label: "Home", href: "/" }, { label: "About", href: "/about" }, { label: "Blog", href: "#" }, { label: "Careers", href: "#" }] },
+  { title: "COMPANY", links: [{ label: "Home", href: "/" }, { label: "Features", href: "/features" }, { label: "Pricing", href: "/pricing" }, { label: "About", href: "/about" }] },
   { title: "LEGAL", links: [{ label: "Terms & Conditions", href: "/terms-of-service" }, { label: "Privacy Policy", href: "/privacy-policy" }] },
-  { title: "SUPPORT", links: [{ label: "support@zedsms.com", href: "mailto:support@zedsms.com" }, { label: "FAQ", href: "#" }, { label: "Contact", href: "#" }] },
+  { title: "SUPPORT", links: [{ label: "support@zedsms.com", href: "mailto:support@zedsms.com" }, { label: "FAQ", href: "/#faq" }, { label: "Contact", href: "mailto:support@zedsms.com" }] },
 ];
 
 export default function Footer() {
@@ -27,20 +31,22 @@ export default function Footer() {
         <div className="mx-auto max-w-[1290px] flex flex-col lg:flex-row lg:items-start lg:justify-between gap-12">
           <div className="flex flex-col gap-8 lg:gap-10 w-full max-w-[320px] lg:shrink-0">
             <div className="flex flex-col gap-6">
-              <a href="/" className="flex items-center gap-3" aria-label="ZEDSMS home">
+              <Link to="/" className="flex items-center gap-3" aria-label="ZEDSMS home">
                 <img src={imgLogoMark} alt="" className="size-[42px]" />
                 <img src={imgLogoText} alt="" className="h-[23.6px] w-[128.2px]" />
-              </a>
+              </Link>
               <p className="font-sans text-base leading-6 text-[#494c52]">
                 Get instant private and shared phone numbers across the US, UK, Canada, and Australia for seamless SMS receiving.
               </p>
             </div>
 
-            <ul className="flex items-center gap-2">
+            {socials.length > 0 && <ul className="flex items-center gap-2">
               {socials.map((s) => (
                 <li key={s.label}>
                   <a
-                    href="#"
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     aria-label={s.label}
                     className="lift group flex items-center justify-center size-[52px] sm:size-[60px] rounded-full bg-[#f3f4f6] hover:bg-[#2155f5] focus-visible:bg-[#2155f5]"
                   >
@@ -60,7 +66,7 @@ export default function Footer() {
                   </a>
                 </li>
               ))}
-            </ul>
+            </ul>}
           </div>
 
           <nav className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-10 sm:gap-12 lg:flex lg:gap-12">
@@ -70,12 +76,15 @@ export default function Footer() {
                 <ul className="flex flex-col gap-2.5">
                   {g.links.map((l) => (
                     <li key={l.label}>
-                      <a
-                        href={l.href}
-                        className="font-sans text-base leading-6 text-[#494c52] hover:text-[#2155f5] transition-colors break-all sm:break-normal"
-                      >
-                        {l.label}
-                      </a>
+                      {l.href.startsWith("/") ? (
+                        <Link to={l.href} className="font-sans text-base leading-6 text-[#494c52] hover:text-[#2155f5] transition-colors break-all sm:break-normal">
+                          {l.label}
+                        </Link>
+                      ) : (
+                        <a href={l.href} className="font-sans text-base leading-6 text-[#494c52] hover:text-[#2155f5] transition-colors break-all sm:break-normal">
+                          {l.label}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>

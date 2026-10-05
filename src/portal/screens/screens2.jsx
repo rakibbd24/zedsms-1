@@ -750,7 +750,7 @@ const BuyScreen = ({ setRoute, openNumber }) => {
         {/* terms agreement gate */}
         <label style={{ display: "flex", alignItems: "flex-start", gap: 9, marginBottom: 13, cursor: "pointer" }}>
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, accentColor: "var(--accent)", flexShrink: 0, cursor: "pointer" }} />
-          <span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5 }}>I agree to the <a href="terms.html#terms" target="_blank" rel="noopener" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "underline" }}>Terms &amp; Conditions</a> and <a href="terms.html#usage" target="_blank" rel="noopener" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "underline" }}>Usage Policy</a>.</span>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5 }}>I agree to the <a href="/terms-of-service" target="_blank" rel="noopener" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "underline" }}>Terms &amp; Conditions</a> and <a href="/terms-of-service#acceptable-use" target="_blank" rel="noopener" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "underline" }}>Usage Policy</a>.</span>
         </label>
 
         <Button full size="lg" icon="cart" disabled={!agreed || processing || !!blocker} onClick={confirmPurchase}>

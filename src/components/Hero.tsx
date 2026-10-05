@@ -1,19 +1,19 @@
 import { type CSSProperties } from "react";
 import Navbar from "./Navbar";
-import imgBg from "../assets/hero/4156c.webp";
+import imgBg from "../assets/hero/hero-cloud-background.webp";
 // Placeholder — swap this file for the final hero image
-import imgHero from "../assets/hero/heroimage.jpeg";
-import imgShieldSmall from "../assets/hero/1841d.svg";
-import imgAppStore from "../assets/hero/929c9.svg";
-import imgGooglePlay from "../assets/hero/f38c8.svg";
-import imgAndroid from "../assets/hero/12d20.svg";
-import imgApple from "../assets/hero/c64d7.svg";
-import imgDesktop from "../assets/hero/b8b41.svg";
-import imgTelegram from "../assets/hero/8a3c4.svg";
-import imgLocation from "../assets/hero/94440.svg";
-import imgShield from "../assets/hero/2223c.svg";
-import imgDollar from "../assets/hero/2d002.svg";
-import imgFlash from "../assets/hero/b81d4.svg";
+import imgHero from "../assets/hero/hero-woman-four-countries.webp";
+import imgShieldSmall from "../assets/hero/icon-shield-small.svg";
+import imgAppStore from "../assets/hero/badge-app-store.svg";
+import imgGooglePlay from "../assets/hero/badge-google-play.svg";
+import imgAndroid from "../assets/hero/icon-android.svg";
+import imgApple from "../assets/hero/icon-apple.svg";
+import imgDesktop from "../assets/hero/icon-desktop.svg";
+import imgTelegram from "../assets/hero/icon-telegram.svg";
+import imgLocation from "../assets/hero/icon-location.svg";
+import imgShield from "../assets/hero/icon-shield.svg";
+import imgDollar from "../assets/hero/icon-dollar.svg";
+import imgFlash from "../assets/hero/icon-flash.svg";
 
 const features = [
   {
@@ -96,8 +96,8 @@ export default function Hero() {
                 Phone, PC, Mac, Telegram bot apps
               </span>
               <div className="flex items-center gap-2">
-                {[imgAndroid, imgApple, imgDesktop, imgTelegram].map((src, i) => (
-                  <img key={i} src={src} alt="" className="size-6" />
+                {[[imgAndroid, "Android"], [imgApple, "iPhone and Mac"], [imgDesktop, "Desktop"], [imgTelegram, "Telegram bot"]].map(([src, label]) => (
+                  <img key={label} src={src} alt={label} title={label} className="size-6" />
                 ))}
               </div>
             </div>
@@ -106,7 +106,9 @@ export default function Hero() {
 
         <img
           src={imgHero}
-          alt="Person using a virtual phone number"
+          alt="Smiling woman holding her phone, with the flags of the UK, Australia, the US and Canada — the four countries ZEDSMS numbers cover"
+          // the largest image above the fold: fetch it first
+          fetchPriority="high"
           style={{ "--i": 4 } as CSSProperties}
           className="hero-in w-full max-w-[570px] lg:w-[44%] xl:w-[570px] lg:shrink-0 aspect-square object-cover rounded-[20px] sm:rounded-[28px] bg-[#eef1fb]"
         />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Collapse from "./Collapse";
-import imgChevron from "../assets/faq/c4c0b.svg";
+import imgChevron from "../assets/faq/icon-chevron-down.svg";
 
 const faqs = [
   {
@@ -33,7 +33,7 @@ export default function Faq() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section className="relative w-full bg-[#f9f9fa] px-6 sm:px-8 lg:px-10 xl:px-12 min-[1440px]:px-[75px] py-12 lg:py-[60px]">
+    <section id="faq" className="scroll-mt-24 relative w-full bg-[#f9f9fa] px-6 sm:px-8 lg:px-10 xl:px-12 min-[1440px]:px-[75px] py-12 lg:py-[60px]">
       <div className="mx-auto max-w-[1290px] flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 lg:gap-12">
         <div className="flex flex-col gap-4 items-start lg:w-[320px] xl:w-[367px] lg:shrink-0">
           <div

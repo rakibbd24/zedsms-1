@@ -1,7 +1,8 @@
-import imgPrivate from "../assets/number-types/ea56f.webp";
-import imgShared from "../assets/number-types/777d9.webp";
-import imgArrow from "../assets/number-types/de9e9.svg";
-import imgCheck from "../assets/number-types/2d7d8.svg";
+import { Link } from "react-router-dom";
+import imgPrivate from "../assets/number-types/private-number-app.webp";
+import imgShared from "../assets/number-types/shared-number-services.webp";
+import imgArrow from "../assets/number-types/icon-arrow-right-white.svg";
+import imgCheck from "../assets/number-types/icon-check.svg";
 
 const offers = [
   {
@@ -74,13 +75,13 @@ export default function NumberTypes() {
                     <p className="font-sans text-base leading-6 text-[#494c52]">{o.body}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-                    <a
-                      href="#"
+                    <Link
+                      to="/auth/signup"
                       className="lift inline-flex items-center justify-center gap-2.5 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-white whitespace-nowrap"
                     >
                       {o.cta}
                       <img src={imgArrow} alt="" className="size-4" />
-                    </a>
+                    </Link>
                     <span className="font-display font-medium text-sm leading-5 text-[#0f1013] whitespace-nowrap">
                       {o.price}
                     </span>
@@ -101,6 +102,8 @@ export default function NumberTypes() {
             <img
               src={o.image}
               alt={o.alt}
+              loading="lazy"
+              decoding="async"
               className={`w-full aspect-[570/512] lg:aspect-auto lg:h-full lg:w-auto lg:flex-1 lg:max-w-[570px] object-cover rounded-2xl ${
                 o.imageFirst ? "lg:order-1" : ""
               }`}

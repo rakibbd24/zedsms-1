@@ -1,41 +1,41 @@
 import { useState } from "react";
 import Collapse from "./Collapse";
-import imgMeeting from "../assets/use-cases/a3df0.webp";
-import imgMarketplace from "../assets/use-cases/faq2.png";
-import imgFamily from "../assets/use-cases/faq3.png";
-import imgTravel from "../assets/use-cases/faq4.png";
-import imgVerification from "../assets/use-cases/faq5.png";
+import imgMeeting from "../assets/use-cases/use-case-meeting-new-people.webp";
+import imgMarketplace from "../assets/use-cases/use-case-marketplace.webp";
+import imgFamily from "../assets/use-cases/use-case-family.webp";
+import imgTravel from "../assets/use-cases/use-case-travel.webp";
+import imgVerification from "../assets/use-cases/use-case-verification.webp";
 
 const useCases = [
   {
     title: "Meeting new people",
     body: "Swap numbers with someone you just met online without swapping your actual line. Keep a private zedsms number for dating apps and let it go whenever you want.",
     image: imgMeeting,
-    alt: "Woman smiling at her phone in a café",
+    alt: "Woman smiling at a message on her phone while sitting in a café",
   },
   {
     title: "Marketplace listings",
     body: "Listing a couch or a spare room? Put a private number on the ad instead of your real one, and stop taking calls about it once it's sold.",
     image: imgMarketplace,
-    alt: "Marketplace listings",
+    alt: "Phone showing a buyer and seller chatting about a sofa listing, with the sofa in the room behind",
   },
   {
     title: "Family abroad",
     body: "Get a local number in a parent or sibling's country so calls home connect like a local call, not an international one.",
     image: imgFamily,
-    alt: "Family abroad",
+    alt: "Grandmother smiling on a video call with her family on her phone",
   },
   {
     title: "Traveling somewhere new",
     body: "Pick up a local number for the trip so hotels, drivers and rentals can reach you — no roaming charges, no giving out your home number.",
     image: imgTravel,
-    alt: "Traveling somewhere new",
+    alt: "Traveller in a sun hat with a camera, checking her phone in a new city",
   },
   {
     title: "One-time verification codes",
     body: "Signing up for something you'll use once? Rent a shared number just for the code, and keep your main number out of every app's database.",
     image: imgVerification,
-    alt: "One-time verification codes",
+    alt: "Hand holding a phone showing a verification code screen",
   },
 ];
 
@@ -79,6 +79,8 @@ export default function UseCases() {
                 src={u.image}
                 alt={i === active ? u.alt : ""}
                 aria-hidden={i !== active}
+                loading={i === 0 ? undefined : "lazy"}
+                decoding="async"
                 className={`crossfade absolute inset-0 size-full object-cover ${
                   i === active ? "opacity-100" : "opacity-0"
                 }`}

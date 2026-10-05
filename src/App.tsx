@@ -1,13 +1,15 @@
-import { useLayoutEffect } from "react";
+import { lazy, Suspense, useLayoutEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Home from "./pages/Home";
-import Features from "./pages/Features";
-import About from "./pages/About";
-import Pricing from "./pages/Pricing";
-import Portal from "./pages/Portal";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
+// Loaded on demand: the portal alone is most of the bundle, so the home page no longer
+// ships it. Home and the auth pages stay in the main chunk.
+const Features = lazy(() => import("./pages/Features"));
+const About = lazy(() => import("./pages/About"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Portal = lazy(() => import("./pages/Portal"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 import { SignInPage, SignUpPage } from "./pages/Auth";
 import { EmailVerificationPage } from "./pages/EmailVerification";
 import { OTPVerificationPage } from "./pages/OTPVerification";
@@ -15,9 +17,10 @@ import { AuthProvider } from "./portal/context/AuthContext";
 import { ProtectedRoute } from "./portal/components/ProtectedRoute";
 import { GuestRoute } from "./portal/components/GuestRoute";
 // @ts-ignore
-import PaymentReturn from "./portal/screens/PaymentReturn";
+const PaymentReturn = lazy(() => import("./portal/screens/PaymentReturn"));
 import { VerificationSuccessPage } from "./pages/VerificationSuccess";
 import { TelegramCallbackPage } from "./pages/TelegramCallback";
+import NotFound from "./pages/NotFound";
 
 // Where the payment gateways send users back after a top-up (configured on the
 // providers and in the backend) — all handled by one return page.
@@ -42,12 +45,22 @@ function ScrollToTop() {
   return null;
 }
 
+// shown for the moment a lazily loaded page is fetched
+function PageLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f9f9fa]">
+      <div className="size-8 rounded-full border-[3px] border-[#e1e2e9] border-t-[#2155f5] animate-spin" aria-label="Loading" />
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
           <ScrollToTop />
+          <Suspense fallback={<PageLoading />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/features" element={<Features />} />
@@ -82,7 +95,10 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            {/* anything else used to render a blank page */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

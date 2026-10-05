@@ -32,7 +32,6 @@ function assertOk(res, fallback) {
 // Get user's virtual numbers
 export async function getNumbers() {
   try {
-    console.log("Fetching numbers...");
     const token = localStorage.getItem("zedsms-token");
 
     // The web endpoint lives at the backend root (/web/user/my-numbers, not under /api) and
@@ -52,15 +51,12 @@ export async function getNumbers() {
     }
 
     const data = await response.json();
-    console.log("Numbers response:", data);
 
     // API returns: { status, data: { numbers: [...], pagination: {...} } }
     if (data?.data?.numbers && Array.isArray(data.data.numbers)) {
-      console.log("✓ Got numbers:", data.data.numbers.length);
       return data.data.numbers;
     }
 
-    console.log("No numbers array found in response");
     return [];
   } catch (error) {
     console.error("Error fetching numbers:", error);
@@ -142,7 +138,6 @@ export async function getRestoreNumberPrice(numberId) {
 // returns 200 with message !== "success".
 export async function restoreNumber(numberId) {
   try {
-    console.log("Restoring number:", numberId);
     const res = await api.post(`/user/restore-number`, {
       mobile_number_id: numberId
     });

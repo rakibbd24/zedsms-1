@@ -12,7 +12,20 @@ export class ApiError extends Error {
   }
 }
 
-export async function request(path, { method = "GET", body, headers, ...rest } = {}) {
+// The session is only ever read from localStorage (getMe never asks the server), so a
+// token the backend has expired or revoked would leave the user "signed in" with every
+// call failing. Any 401 on an authenticated request ends the session and sends them to
+// sign in instead — once, however many requests fail together.
+let sessionEnding = false;
+function endExpiredSession() {
+  if (sessionEnding) return;
+  sessionEnding = true;
+  localStorage.removeItem("zedsms-token");
+  localStorage.removeItem("zedsms-user");
+  window.location.replace("/auth/signin?expired=1");
+}
+
+export async function request(path, { method = "GET", body, headers, authRedirect = true, ...rest } = {}) {
   const token = localStorage.getItem("zedsms-token");
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
@@ -29,6 +42,7 @@ export async function request(path, { method = "GET", body, headers, ...rest } =
   const data = isJson ? await res.json().catch(() => null) : null;
 
   if (!res.ok) {
+    if (res.status === 401 && token && authRedirect) endExpiredSession();
     throw new ApiError(data?.message || res.statusText, res.status, data);
   }
   return data;

@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -10,7 +10,6 @@ import { Empty } from "../components/ui/Empty";
 import { Modal } from "../components/ui/Modal";
 import { Toast } from "../components/ui/Toast";
 import { Pagination } from "../components/ui/Pagination";
-import { countryRentOf, svcPriceOf, weeklyPriceOf } from "../lib/pricing";
 import { useNumbers, useExtendNumber, useRestoreNumber, useRestoreNumberPrice, useTransferNumber, useRenameNumber, useReleaseNumber, useUpdateAutoRenew, useSendSmsFromNumber, useNumberExtensionPlans } from "../hooks/useNumbers";
 import { useMessages, useRecentMessages } from "../hooks/useMessages";
 import { useUser } from "../hooks/useUser";
@@ -333,7 +332,7 @@ const HomeScreen = ({ setRoute, openNumber }) => {
 
       {/* stats */}
       <div className="stats-grid">
-        <StatCard label="Balance" value={`$${(balanceData?.amount || 0).toFixed(2)}`} sub="Across all wallets" icon="wallet" tone="var(--accent)" />
+        <StatCard label="Balance" value={`$${(balanceData?.amount || 0).toFixed(2)}`} sub="Available to spend" icon="wallet" tone="var(--accent)" />
         <StatCard label="Active numbers" value={active.length} sub={`${expiring.length} expiring soon`} icon="grid" tone="var(--success)" />
       </div>
 
@@ -768,7 +767,11 @@ const NumbersScreen = () => {
   const { data: apiNumbers = [], isLoading: numbersLoading } = useNumbers();
   const { data: user } = useUser();
   const { data: balanceData } = useBalance();
-  const [query, setQuery] = React.useState("");
+  // ?q= comes from the top-bar search
+  const [searchParams] = useSearchParams();
+  const urlQuery = searchParams.get("q") || "";
+  const [query, setQuery] = React.useState(urlQuery);
+  React.useEffect(() => { if (urlQuery) { setQuery(urlQuery); setFilter("all"); } }, [urlQuery]);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null); // 'renew' | 'restore' | 'transfer' | 'rename' | 'release' | 'compose'
   const [msgTab, setMsgTab] = React.useState("inbox"); // 'inbox' | 'sent'
@@ -830,7 +833,6 @@ const NumbersScreen = () => {
 
   // Normalize API numbers to component format
   const numbers = React.useMemo(() => {
-    console.log("Normalizing numbers, sample raw data:", apiNumbers[0]);
     return apiNumbers.map((n) => {
       const expiryTs = n.expires_at || n.expiry;
       const daysLeft = getDaysRemaining(expiryTs);
@@ -872,7 +874,6 @@ const NumbersScreen = () => {
       normalized.restoreDaysLeft = lapsed ? restoreDaysLeftOf(expiryTs) : 0;
       normalized.canRestore = lapsed && !!normalized.restoreDeadline && normalized.restoreDaysLeft > 0;
 
-      if (n.label) console.log("Number with label:", n.id, n.label, "→", normalized.label);
       return normalized;
     });
   }, [apiNumbers]);
@@ -902,7 +903,7 @@ const NumbersScreen = () => {
     : list[0];
 
   // Get messages for current number
-  const { data: msgData, isLoading: messagesLoading, isFetching: messagesFetching } = useMessages(current?.id, msgPage);
+  const { data: msgData, isLoading: messagesLoading, isFetching: messagesFetching } = useMessages(current?.id, msgPage, current?.mobile_number_type_id);
   const rawMessages = React.useMemo(() => msgData?.rows || [], [msgData]);
   const msgLastPage = msgData?.lastPage || 1;
   const msgTotal = msgData?.total || 0;

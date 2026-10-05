@@ -8,7 +8,8 @@ export const AuthProvider = ({ children }) => {
 
   // Auth state conditions
   const isLoggedIn = !!auth.user;
-  const isEmailVerified = !!auth.user && auth.user.email_verified_at !== null;
+  // verified only with a timestamp — a missing field used to count as verified
+  const isEmailVerified = !!auth.user?.email_verified_at;
   // Whether 2FA is switched on for the account (shown in Settings). It is NOT a
   // gate on the dashboard: the token only exists once the code has been accepted
   // at sign-in, so a logged-in 2FA user has already passed that step.

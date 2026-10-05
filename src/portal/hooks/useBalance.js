@@ -22,7 +22,9 @@ export function useBalance(options = {}) {
     staleTime,
     gcTime,
     refetchInterval: pollingInterval,
-    refetchIntervalInBackground: true, // Keep polling even when tab is hidden
+    // hidden tabs don't poll: realtime events refresh the balance, and polling a
+    // background tab every 30s only spends battery and data
+    refetchIntervalInBackground: false,
     enabled,
     select: (data) => ({
       amount: data.balance,

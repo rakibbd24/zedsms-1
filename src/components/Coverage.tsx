@@ -1,4 +1,4 @@
-import imgGlobe from "../assets/coverage/a7c33.webp";
+import imgGlobe from "../assets/coverage/coverage-globe.webp";
 
 export default function Coverage() {
   return (
@@ -30,6 +30,8 @@ export default function Coverage() {
         <img
           data-reveal-target
           src={imgGlobe}
+          loading="lazy"
+          decoding="async"
           alt="Globe showing live numbers in the United Kingdom, Canada, United States and Australia"
           className="w-full max-w-[581px] aspect-[581/538] object-contain lg:flex-1 lg:min-w-0"
         />

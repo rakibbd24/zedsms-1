@@ -1,14 +1,14 @@
 import { Link } from "react-router-dom";
-import imgFlagUk from "../assets/pricing/ea42a.svg";
-import imgFlagUs from "../assets/pricing/91b4b.svg";
+import imgFlagUk from "../assets/pricing/flag-united-kingdom.svg";
+import imgFlagUs from "../assets/pricing/flag-united-states.svg";
 // Figma has the Canada and Australia flags swapped; assigned correctly here.
-import imgFlagCa from "../assets/pricing/67657.svg";
-import imgFlagAu from "../assets/pricing/b2cdb.svg";
-import imgTag from "../assets/pricing/59681.svg";
-import imgGift from "../assets/pricing/0c16a.svg";
-import imgCall from "../assets/pricing/06172.svg";
-import imgRefresh from "../assets/pricing/4f77e.svg";
-import imgFlash from "../assets/pricing/8dd23.svg";
+import imgFlagCa from "../assets/pricing/flag-canada.svg";
+import imgFlagAu from "../assets/pricing/flag-australia.svg";
+import imgTag from "../assets/pricing/icon-tag.svg";
+import imgGift from "../assets/pricing/icon-gift.svg";
+import imgCall from "../assets/pricing/icon-call.svg";
+import imgRefresh from "../assets/pricing/icon-refresh.svg";
+import imgFlash from "../assets/pricing/icon-flash.svg";
 import { usePrivatePricing, type PrivateCountryPricing } from "../api/publicPricing";
 
 // The four featured countries, in the design's order. Prices come from the API.

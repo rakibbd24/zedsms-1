@@ -4,7 +4,7 @@ import Faq from "../components/Faq";
 import Cta from "../components/Cta";
 import Footer from "../components/Footer";
 import { useReveal } from "../hooks/useReveal";
-import imgBg from "../assets/features/644bc.png";
+import imgBg from "../assets/shared/cloud-background.webp";
 
 export default function PricingPage() {
   useReveal();

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import imgChevron from "../assets/pricing/calc/0e4d4.svg";
+import imgChevron from "../assets/pricing/calc/icon-chevron-down.svg";
 
 export type Country = {
   code: string;

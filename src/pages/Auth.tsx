@@ -163,8 +163,11 @@ const AuthShell = ({ children, footnote }: { children: React.ReactNode; footnote
 function SignInPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  // set when the 2FA step sends the user back (challenge expired or used up)
-  const notice = (location.state as { notice?: string } | null)?.notice;
+  // set when the 2FA step sends the user back (challenge expired or used up), or
+  // ?expired=1 when the API rejected a stale session (see api/client)
+  const expired = new URLSearchParams(location.search).get("expired") === "1";
+  const notice = (location.state as { notice?: string } | null)?.notice
+    || (expired ? "Your session has expired. Please sign in again." : undefined);
   const { login, isLoginLoading } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -212,7 +215,17 @@ function SignInPage() {
             setTimeout(() => navigate("/app/home"), 300);
           }
         },
-        onError: () => {
+        onError: (error: any) => {
+          // the backend rate-limits /login itself ("Too many login attempts. Please try
+          // again in N seconds.") — that survives a reload, so mirror its wait here
+          const serverMsg = String(error?.message || "");
+          if (/too many/i.test(serverMsg)) {
+            const secs = Number(/(\d+)\s*second/i.exec(serverMsg)?.[1]) || LOCK_MS / 1000;
+            setErrors({});
+            setNow(Date.now());
+            setLockedUntil(Date.now() + secs * 1000);
+            return;
+          }
           const next = attempts + 1;
           setAttempts(next);
           if (next >= MAX_ATTEMPTS) {

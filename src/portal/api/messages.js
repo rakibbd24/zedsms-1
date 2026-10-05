@@ -3,9 +3,7 @@ import { api } from "./client";
 // Get all recent SMS messages (for dashboard)
 export async function getRecentMessages() {
   try {
-    console.log("Fetching recent messages...");
     const response = await api.get(`/user/all-sms`);
-    console.log("Recent messages response:", response);
 
     // Extract messages array from nested structure
     let messages = [];
@@ -106,11 +104,14 @@ export const MESSAGES_PER_PAGE = 20;
 // One page of a number's SMS, newest first.
 // GET /user/all-sms/{id}?page=N&per_page=20 → { message, data: <laravel paginator> }
 // per_page is a hint: if the backend ignores it, its own page size is used.
-export async function getMessages(numberId, page = 1) {
+// typeId (1 shared · 2 private) is sent too: ids are per table, so a shared and a
+// private number can share one — the backend needs it to tell them apart.
+export async function getMessages(numberId, page = 1, typeId) {
   const empty = { rows: [], page: 1, lastPage: 1, total: 0, perPage: MESSAGES_PER_PAGE };
   if (!numberId) return empty;
   try {
-    const res = await api.get(`/user/all-sms/${numberId}?page=${page}&per_page=${MESSAGES_PER_PAGE}`);
+    const type = typeId === 1 || typeId === 2 ? `&mobile_number_type_id=${typeId}` : "";
+    const res = await api.get(`/user/all-sms/${numberId}?page=${page}&per_page=${MESSAGES_PER_PAGE}${type}`);
     const paginator = res?.data && !Array.isArray(res.data) ? res.data : {};
     const rows = Array.isArray(paginator.data) ? paginator.data
       : Array.isArray(res?.data) ? res.data

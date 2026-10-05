@@ -1,6 +1,6 @@
-import imgCountry from "../assets/how-it-works/d7c4d.png";
-import imgNumber from "../assets/how-it-works/f723f.png";
-import imgPlan from "../assets/how-it-works/81a2c.png";
+import imgCountry from "../assets/how-it-works/step-choose-country.png";
+import imgNumber from "../assets/how-it-works/step-pick-number.png";
+import imgPlan from "../assets/how-it-works/step-choose-plan.png";
 
 const steps = [
   {
@@ -75,6 +75,8 @@ export default function HowItWorks() {
               <img
                 src={s.image}
                 alt={s.alt}
+                loading="lazy"
+                decoding="async"
                 className={`mt-auto w-full ${s.imageAspect} object-cover`}
               />
             </li>

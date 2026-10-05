@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "./Icon";
 import { Button } from "./ui/Button";
 import { PAGE_TITLES } from "./nav";
@@ -19,6 +20,14 @@ const notifWhen = (iso) => {
 
 export const Topbar = ({ route, setRoute, theme, toggleTheme, setMobileOpen }) => {
   const [notifOpen, setNotifOpen] = React.useState(false);
+  const navigate = useNavigate();
+  const [search, setSearch] = React.useState("");
+  // searches My Numbers (number, label, country, service) — opens it filtered
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const q = search.trim();
+    navigate(q ? `/app/numbers?q=${encodeURIComponent(q)}` : "/app/numbers");
+  };
 
   const feed = useNotificationFeed();
   const markRead = useMarkNotificationRead();
@@ -39,10 +48,11 @@ export const Topbar = ({ route, setRoute, theme, toggleTheme, setMobileOpen }) =
         </div>
 
         {/* search */}
-        <div className="topbar-search" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, height: 38, padding: "0 13px", borderRadius: 10, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-faint)", minWidth: 220, maxWidth: 320, flex: "0 1 auto" }}>
+        <form onSubmit={submitSearch} role="search" className="topbar-search" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, height: 38, padding: "0 13px", borderRadius: 10, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-faint)", minWidth: 220, maxWidth: 320, flex: "0 1 auto" }}>
           <Icon name="search" size={16} />
-          <input placeholder="Search numbers, codes…" style={{ border: "none", background: "transparent", outline: "none", color: "var(--text)", fontSize: 13.5, width: "100%" }} />
-        </div>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your numbers…" aria-label="Search your numbers"
+            style={{ border: "none", background: "transparent", outline: "none", color: "var(--text)", fontSize: 13.5, width: "100%" }} />
+        </form>
 
         <Button icon="plus" size="md" onClick={() => setRoute("buy")} className="desktop-only">Buy number</Button>
 

@@ -8,6 +8,9 @@ import { copyText } from "../lib/clipboard";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 
+// the buy shortcut is ⌘B on Apple devices and Ctrl+B elsewhere (see App.jsx)
+const SHORTCUT_MOD = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl ";
+
 const NavItem = ({ item, route, setRoute, setMobileOpen }) => {
   const active = route === item.id;
   const [hover, setHover] = React.useState(false);
@@ -20,7 +23,7 @@ const NavItem = ({ item, route, setRoute, setMobileOpen }) => {
         transition: "all 0.14s ease", position: "relative", letterSpacing: "-0.005em", border: active ? "2px solid #2155f5" : "none" }}>
       <Icon name={item.icon} size={18} strokeWidth={active ? 2 : 1.7} />
       <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>
-      {item.id === "buy" && <span className="desktop-only" style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 600, color: active ? "#ffffff" : "var(--accent)", background: active ? "rgba(255,255,255,0.2)" : "var(--accent-soft)", padding: "2px 6px", borderRadius: 6 }}>⌘B</span>}
+      {item.id === "buy" && <span className="desktop-only" style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 600, color: active ? "#ffffff" : "var(--accent)", background: active ? "rgba(255,255,255,0.2)" : "var(--accent-soft)", padding: "2px 6px", borderRadius: 6 }}>{SHORTCUT_MOD}B</span>}
     </button>
   );
 };
@@ -94,7 +97,7 @@ export const Sidebar = ({ route, setRoute, mobileOpen, setMobileOpen, onLogout }
                 <Icon name="plus" size={15} />
               </span>
               <div style={{ position: "relative", fontSize: 13, fontWeight: 600, marginBottom: 3, letterSpacing: "-0.01em" }}>Need another number?</div>
-              <div style={{ position: "relative", fontSize: 11.5, opacity: 0.85, lineHeight: 1.4, marginBottom: 10 }}>3,380+ numbers ready across 20+ countries.</div>
+              <div style={{ position: "relative", fontSize: 11.5, opacity: 0.85, lineHeight: 1.4, marginBottom: 10 }}>Private &amp; shared numbers in the US, UK, Canada and Australia.</div>
               <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600 }}>
                 Buy a number <Icon name="arrowR" size={13} />
               </span>

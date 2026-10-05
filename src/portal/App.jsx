@@ -1,6 +1,5 @@
 import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { TweaksPanel, TweakSection, TweakColor, TweakRadio } from "./components/TweaksPanel";
@@ -205,7 +204,6 @@ main { display: flex; flex-direction: column; min-height: auto; }
 }
 `;
 
-const queryClient = new QueryClient();
 
 // Initialize CSS variables on load
 const initializeCSSVariables = (theme = "light", t = {}) => {
@@ -402,6 +400,8 @@ function AppContent({ onLogoutRedirect }) {
               <Route path="/settings" element={<SettingsScreen theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout} />} />
               <Route path="/alerts-preview" element={<AlertsDesignPreview />} />
               <Route path="/" element={<HomeScreen setRoute={setRoute} openNumber={goNumbers} />} />
+              {/* unknown /app/... paths land on the overview instead of an empty page */}
+              <Route path="*" element={<Navigate to="/app/home" replace />} />
             </Routes>
           </main>
         </div>
@@ -410,10 +410,8 @@ function AppContent({ onLogoutRedirect }) {
   );
 }
 
+// Uses the app-wide QueryClient from src/App.tsx. The portal used to create its own,
+// so auth/profile data lived in two caches that fetched twice and drifted apart.
 export default function App(props) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent {...props} />
-    </QueryClientProvider>
-  );
+  return <AppContent {...props} />;
 }

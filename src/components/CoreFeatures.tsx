@@ -1,9 +1,9 @@
-import imgDevices from "../assets/core-features/1d194.svg";
-import imgRefresh from "../assets/core-features/3fb3b.svg";
-import imgSwap from "../assets/core-features/3a029.svg";
-import imgClock from "../assets/core-features/04a57.svg";
-import imgShield from "../assets/core-features/ebbb1.svg";
-import imgServices from "../assets/core-features/fafdf.svg";
+import imgDevices from "../assets/core-features/icon-devices.svg";
+import imgRefresh from "../assets/core-features/icon-refresh.svg";
+import imgSwap from "../assets/core-features/icon-swap.svg";
+import imgClock from "../assets/core-features/icon-clock.svg";
+import imgShield from "../assets/core-features/icon-shield.svg";
+import imgServices from "../assets/core-features/icon-services.svg";
 
 const features = [
   {

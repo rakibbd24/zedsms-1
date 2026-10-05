@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import imgDivider from "../assets/stats/39f5e.svg";
+import imgDivider from "../assets/stats/divider.svg";
 
 const stats = [
   // Figma reads "Sountries live" — typo corrected.

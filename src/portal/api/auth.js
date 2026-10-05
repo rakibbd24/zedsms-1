@@ -221,7 +221,14 @@ export async function getMe() {
   return normalizeUser(user);
 }
 
+// Sign out on the server too — clearing localStorage alone left the token valid there.
+// POST /logout deletes the token that made the request (currentAccessToken). keepalive
+// lets it finish while the page navigates away; request() reads the token synchronously,
+// before it's cleared below.
 export function logout() {
+  if (localStorage.getItem("zedsms-token")) {
+    api.post("/logout", {}, { keepalive: true, authRedirect: false }).catch(() => {});
+  }
   localStorage.removeItem("zedsms-token");
   localStorage.removeItem("zedsms-user");
 }

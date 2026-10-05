@@ -4,29 +4,32 @@ import Stats from "../components/Stats";
 import Cta from "../components/Cta";
 import Footer from "../components/Footer";
 import { useReveal } from "../hooks/useReveal";
-import imgBg from "../assets/features/644bc.png";
-import imgHero from "../assets/about/49a3f.png";
-import imgPrivacy from "../assets/about/3d05e.png";
-import imgSpeed from "../assets/about/e9da3.png";
-import imgPricing from "../assets/about/8bde5.png";
+import imgBg from "../assets/shared/cloud-background.webp";
+import imgHero from "../assets/about/about-hero-woman-with-app.webp";
+import imgPrivacy from "../assets/about/privacy-shield.png";
+import imgSpeed from "../assets/about/speed-gauge.png";
+import imgPricing from "../assets/about/fair-pricing-wallet.png";
 
 const values = [
   {
     title: "Privacy first",
     body: "A real local number in the UK, US, Canada or Australia — no second phone needed.",
     image: imgPrivacy,
+    alt: "Blue shield with a padlock protecting a phone number marked as verified",
     imageClass: "h-[264px]",
   },
   {
     title: "Built for speed",
     body: "Codes and calls should arrive instantly — every part of the system is built around that.",
     image: imgSpeed,
+    alt: "Speed gauge at full with a call icon and a check mark",
     imageClass: "h-[264px] rounded-xl",
   },
   {
     title: "Fair pricing",
     body: "Pay only for what you use, from your wallet, with no hidden fees or lock-in.",
     image: imgPricing,
+    alt: "Wallet with coins and a shield, labelled “You're in control — transparent, simple, fair”",
     imageClass: "h-[240px] rounded-xl",
   },
 ];
@@ -89,7 +92,7 @@ export default function About() {
                   <h3 className="font-display font-medium text-xl leading-7 sm:text-2xl text-[#0f1013]">{v.title}</h3>
                   <p className="font-sans text-base leading-6 text-[#494c52]">{v.body}</p>
                 </div>
-                <img src={v.image} alt="" className={`mt-auto w-full object-cover ${v.imageClass}`} />
+                <img src={v.image} alt={v.alt} loading="lazy" decoding="async" className={`mt-auto w-full object-cover ${v.imageClass}`} />
               </li>
             ))}
           </ul>

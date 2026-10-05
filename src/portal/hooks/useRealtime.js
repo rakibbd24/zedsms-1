@@ -76,7 +76,8 @@ export function applyLiveSms(qc, event) {
     // newest-first, so a new SMS only lands on page 1; later pages catch up on refetch
     qc.getQueryCache()
       .findAll({ queryKey: ["messages"] })
-      .filter((q) => String(q.queryKey[1]) === String(numberId) && q.queryKey[2] === 1)
+      .filter((q) => String(q.queryKey[1]) === String(numberId) && q.queryKey[2] === 1
+        && (q.queryKey[3] == null || Number(q.queryKey[3]) === (isPrivate ? 2 : 1)))
       .forEach((q) => qc.setQueryData(q.queryKey, (old) => (isNew(old?.rows)
         ? { ...old, rows: [sms, ...old.rows], total: (old.total || 0) + 1 }
         : old)));

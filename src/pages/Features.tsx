@@ -1,23 +1,24 @@
 import { type CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Coverage from "../components/Coverage";
 import Cta from "../components/Cta";
 import Footer from "../components/Footer";
 import { useReveal } from "../hooks/useReveal";
-import imgBg from "../assets/features/644bc.png";
-import imgPhoto from "../assets/features/1e195.jpg";
-import imgLockBubble from "../assets/features/dad64.png";
-import imgMessageLock from "../assets/features/b54be.svg";
-import imgCall from "../assets/features/bfc35.svg";
-import imgLockPassword from "../assets/features/141bd.svg";
-import imgFlash from "../assets/features/6422f.svg";
-import imgDevices from "../assets/features/1d194.svg";
-import imgRefresh from "../assets/features/3fb3b.svg";
-import imgArrowUpDown from "../assets/features/3a029.svg";
-import imgDollarSend from "../assets/features/b28ac.svg";
-import imgShare from "../assets/features/49933.svg";
-import imgArrowWhite from "../assets/features/de9e9.svg";
-import imgArrowBlue from "../assets/features/5c3c7.svg";
+import imgBg from "../assets/shared/cloud-background.webp";
+import imgPhoto from "../assets/features/woman-checking-phone.webp";
+import imgLockBubble from "../assets/features/secure-message-bubble.webp";
+import imgMessageLock from "../assets/features/icon-message-lock.svg";
+import imgCall from "../assets/features/icon-call.svg";
+import imgLockPassword from "../assets/features/icon-lock-password.svg";
+import imgFlash from "../assets/features/icon-flash.svg";
+import imgDevices from "../assets/features/icon-devices.svg";
+import imgRefresh from "../assets/features/icon-refresh.svg";
+import imgArrowUpDown from "../assets/features/icon-arrow-up-down.svg";
+import imgDollarSend from "../assets/features/icon-dollar-send.svg";
+import imgShare from "../assets/features/icon-share.svg";
+import imgArrowWhite from "../assets/features/icon-arrow-right-white.svg";
+import imgArrowBlue from "../assets/features/icon-arrow-right-blue.svg";
 
 const features = [
   {
@@ -97,7 +98,7 @@ export default function Features() {
               <div className="absolute top-0 left-[-3.16%] w-[104.04%] h-[102.36%] overflow-hidden">
                 <img
                   src={imgPhoto}
-                  alt="Woman smiling at her phone"
+                  alt="Woman holding a laptop, smiling as she checks messages on her phone outside an office"
                   className="absolute top-0 left-[-0.06%] w-[126.25%] h-[114.98%] max-w-none"
                 />
               </div>
@@ -138,20 +139,20 @@ export default function Features() {
           </ul>
 
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <a
-              href="#"
+            <Link
+              to="/auth/signup"
               className="lift inline-flex items-center justify-center gap-2.5 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-white whitespace-nowrap"
             >
               Get Started
               <img src={imgArrowWhite} alt="" className="size-4" />
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="/pricing"
               className="lift inline-flex items-center justify-center gap-2.5 bg-white hover:bg-[#eef1fb] border border-[#e6e6e6] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-[#2155f5] whitespace-nowrap"
             >
               See pricing
               <img src={imgArrowBlue} alt="" className="size-4" />
-            </a>
+            </Link>
           </div>
         </div>
       </section>

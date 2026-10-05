@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import CountrySelect, { type Country } from "./CountrySelect";
 import { allCountries } from "../data/countries";
@@ -15,20 +16,20 @@ import {
   type RentTime,
   type SharedService,
 } from "../api/publicPricing";
-import imgCheck from "../assets/pricing/calc/59365.svg";
-import imgCall from "../assets/pricing/calc/dcadc.svg";
-import imgFlagUk from "../assets/pricing/ea42a.svg";
-import imgFlagUsRound from "../assets/pricing/91b4b.svg";
-import imgFlagCa from "../assets/pricing/67657.svg";
-import imgFlagAu from "../assets/pricing/b2cdb.svg";
-import imgPhoneMissed from "../assets/pricing/calc/a3b6d.svg";
-import imgSmartPhone from "../assets/pricing/calc/76e4c.svg";
-import imgLandline from "../assets/pricing/calc/c0cfb.svg";
-import imgMessageIn from "../assets/pricing/calc/b136c.svg";
-import imgMessageOut from "../assets/pricing/calc/d8fec.svg";
-import imgInfo from "../assets/pricing/calc/5b09f.svg";
-import imgArrowRight from "../assets/pricing/calc/d004c.svg";
-import imgShare from "../assets/pricing/calc/5da8b.svg";
+import imgCheck from "../assets/pricing/calc/icon-check.svg";
+import imgCall from "../assets/pricing/calc/icon-call.svg";
+import imgFlagUk from "../assets/pricing/flag-united-kingdom.svg";
+import imgFlagUsRound from "../assets/pricing/flag-united-states.svg";
+import imgFlagCa from "../assets/pricing/flag-canada.svg";
+import imgFlagAu from "../assets/pricing/flag-australia.svg";
+import imgPhoneMissed from "../assets/pricing/calc/icon-phone-missed.svg";
+import imgSmartPhone from "../assets/pricing/calc/icon-smartphone.svg";
+import imgLandline from "../assets/pricing/calc/icon-landline.svg";
+import imgMessageIn from "../assets/pricing/calc/icon-message-in.svg";
+import imgMessageOut from "../assets/pricing/calc/icon-message-out.svg";
+import imgInfo from "../assets/pricing/calc/icon-info.svg";
+import imgArrowRight from "../assets/pricing/calc/icon-arrow-right.svg";
+import imgShare from "../assets/pricing/calc/icon-share.svg";
 
 // The savings chip uses the best saving across all countries' plans.
 function getBadges(maxSavings: number | undefined) {
@@ -541,13 +542,13 @@ export default function PricingCalculator() {
                   </div>
                 </div>
 
-                <a
-                  href="#"
+                <Link
+                  to="/auth/signup"
                   className="lift bg-[#2155f5] hover:bg-[#1a46d1] flex gap-2.5 items-center justify-center px-6 py-3 rounded-full w-full"
                 >
                   <span className="font-display font-medium text-sm leading-5 text-white">Get started now</span>
                   <img src={imgArrowRight} alt="" className="size-4" />
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -619,13 +620,13 @@ export default function PricingCalculator() {
                 </div>
               </div>
 
-              <a
-                href="#"
+              <Link
+                to="/auth/signup"
                 className="lift bg-[#2155f5] hover:bg-[#1a46d1] flex gap-2.5 items-center justify-center px-6 py-3 rounded-full w-full"
               >
                 <span className="font-display font-medium text-sm leading-5 text-white">Get started now</span>
                 <img src={imgArrowRight} alt="" className="size-4" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

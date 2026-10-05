@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import imgLogoMark from "../assets/hero/7e3e0.svg";
-import imgLogoText from "../assets/hero/b836f.svg";
+import imgLogoMark from "../assets/hero/logo-mark.svg";
+import imgLogoText from "../assets/hero/logo-wordmark.svg";
 import { useAuthContext } from "../portal/context/AuthContext";
 
 const navLinks = [
