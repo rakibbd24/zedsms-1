@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 // images live in public/assets/ (served from the site root)
 const imgPrivate = "/assets/number-types/private-number-app.webp";
@@ -78,7 +78,7 @@ export default function NumberTypes() {
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                     <Link
-                      to="/auth/signup"
+                      href="/auth/signup"
                       className="lift inline-flex items-center justify-center gap-2.5 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-white whitespace-nowrap"
                     >
                       {o.cta}

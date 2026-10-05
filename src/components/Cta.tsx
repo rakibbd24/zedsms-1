@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 // images live in public/assets/ (served from the site root)
 const imgBg = "/assets/cta/cta-background.webp";
@@ -31,7 +31,7 @@ export default function Cta() {
 
           <div className="flex flex-col items-center gap-4">
             <Link
-              to="/auth/signup"
+              href="/auth/signup"
               className="lift inline-flex items-center justify-center gap-2.5 bg-white hover:bg-[#eef1fb] border border-[#e6e6e6] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-[#2155f5] whitespace-nowrap"
             >
               Get started free

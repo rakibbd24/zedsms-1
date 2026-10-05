@@ -1,3 +1,5 @@
+"use client";
+
 import { type CSSProperties } from "react";
 import Navbar from "../components/Navbar";
 import Stats from "../components/Stats";

@@ -4,7 +4,9 @@
 existing portal — **approach A**: the portal is kept as-is (React Router) and mounted inside
 a client-only Next.js catch-all route.
 
-**Status:** Stage 2 done (Next.js 16 builds alongside Vite; Vite still live) — next: Stage 3. Update the progress log at the bottom after every stage.
+**Status:** Stage 3 done (landing + auth pages served by Next.js, pixel-identical) — next: Stage 4.
+On this branch the Vite build no longer works for landing/auth pages (they use `next/link` / `next/navigation`) —
+use `npm run next:build` / `next:start`; `main` keeps the live Vite site until stage 6. Update the progress log at the bottom after every stage.
 
 ---
 
@@ -169,18 +171,25 @@ Each step is a pure refactor, verified on Vite before moving on.
 - **Exit:** `next build` ✅ (`/` prerendered; head tags, Tailwind + fonts CSS and API URL verified on `next start`) ·
   Vite build ✅ · Vite screenshots **18/18 identical** · hand-off checks **7/7** ✅.
 
-### Stage 3 — Landing & auth pages on Next  *(G5, G7, G9, G11)*
-- [ ] Routes for `/`, `/features`, `/pricing`, `/about`, legal pages, all `/auth/*`, `/verification-success`, `not-found`.
-- [ ] In these 16 files swap `react-router-dom` → `next/link` / `next/navigation`:
-      `components/Navbar.tsx`, `Pricing.tsx`, `PricingCalculator.tsx`, `Footer.tsx`,
-      `SocialAuthButtons.tsx`, `NumberTypes.tsx`, `Cta.tsx`, `views/Auth.tsx`, `OTPVerification.tsx`,
-      `EmailVerification.tsx`, `TelegramCallback.tsx`, `VerificationSuccess.tsx`, `Features.tsx`,
-      `Home.tsx`, `NotFound.tsx` (+ `App.tsx` retired in stage 6).
-- [ ] `GuestRoute` equivalent for the auth pages (redirect signed-in users, as today).
-- [ ] `"use client"` on views/components that use hooks; module-scope browser code guarded.
-- [ ] Per-page `metadata` placeholders (copy of today's single title/description — real SEO copy is Stage 5).
-- **Exit:** every landing/auth page server-renders real HTML (`curl` shows content); Next screenshots
-  match baseline; auth items of §8 green on Next dev. **Commit.**
+### Stage 3 — Landing & auth pages on Next  *(G5, G7, G9, G11)* ✅
+- [x] Routes: `/`, `/features`, `/pricing`, `/about`, `/privacy-policy`, `/terms-of-service`, `/auth/signin`, `/auth/signup`,
+      `/auth/verify-email`, `/auth/verify-otp`, `/auth/telegram/callback`, `/verification-success`, `not-found.tsx` —
+      thin `src/app/**/page.tsx` files rendering the unchanged views.
+- [x] 15 files: `react-router-dom` → `next/link` (`to`→`href`) / `next/navigation` (`navigate(x)`→`router.push`,
+      `{replace:true}`→`router.replace`).
+- [x] Address-bar reads: sign-in `?expired=1` and verification-success `?status=&token=` via `useSearchParams` with the
+      route `dynamic = "force-dynamic"` (server sees the query → no hydration mismatch); Telegram callback and Home
+      `#faq` read `window.location` inside effects.
+- [x] `src/views/GuestGate.tsx` replaces `GuestRoute` for sign-in/up (renders until the session is known, then
+      redirects signed-in users) — server and first client render match.
+- [x] `"use client"` on every view (still server-rendered to HTML). `Collapse` (FAQ) renders collapsed in the server
+      HTML (initial `max-height` set once) so answers don't flash open before hydration.
+- [ ] Per-page `metadata` → moved to stage 5 (layout defaults apply meanwhile).
+- **Exit:** `next build` ✅ (landing static, sign-in + verification-success dynamic) · server HTML has real content
+  and `<h1>` on every page (home 1,027 words, terms 1,411…) ✅ · unknown URLs return HTTP **404** (Vite returned 200) ·
+  **Next screenshots 18/18 identical to the Vite baseline** ✅ · hand-off checks **7/7** on Next ✅ · no hydration errors.
+- Notes: `_rsc … ERR_ABORTED` in the shot report = Next link prefetches cancelled when the tool closes the page
+  (harmless). The 404 page's "Go to dashboard" prefetch of `/app/home` 404s until stage 4.
 
 ### Stage 4 — Portal & payment returns on Next  *(G8)*
 - [ ] `src/app/app/[[...slug]]/page.tsx`: client-only `BrowserRouter` → `ProtectedRoute` → existing `Portal`.
@@ -262,6 +271,7 @@ Each step is a pure refactor, verified on Vite before moving on.
 | Date | Stage | Result | Commit |
 |---|---|---|---|
 | 2026-10-05 | Plan written | — | `78dbce8` (main) |
+| 2026-10-05 | Stage 3 — landing & auth on Next | real HTML per page; 18/18 identical to Vite baseline; 7/7 checks | see branch |
 | 2026-10-05 | Stage 2 — Next.js scaffold | Next 16.3.8 builds a placeholder; Vite unchanged (18/18 identical, 7/7 checks) | see branch |
 | 2026-10-05 | Stage 1 — framework-neutral | G1, G2, G3, G4, G6 done on Vite; 18/18 screenshots identical; 7/7 hand-off checks | see branch |
 | 2026-10-05 | Stage 0 — baseline | 18 landing/auth shots; re-capture 18/18 identical; portal excluded (manual checklist only) | — (no code changes; tooling in git-ignored `scratch/`) |

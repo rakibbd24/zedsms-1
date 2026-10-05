@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 type Props = {
   open: boolean;
@@ -10,6 +10,7 @@ type Props = {
 export default function Collapse({ open, id, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const mounted = useRef(false);
+  const [initialMaxHeight] = useState(open ? "none" : "0px");
 
   useLayoutEffect(() => {
     const el = ref.current!;
@@ -40,7 +41,7 @@ export default function Collapse({ open, id, children }: Props) {
   }, [open]);
 
   return (
-    <div ref={ref} id={id} className="collapsible" aria-hidden={!open} inert={!open}>
+    <div ref={ref} id={id} className="collapsible" aria-hidden={!open} inert={!open} style={{ maxHeight: initialMaxHeight }}>
       {children}
     </div>
   );

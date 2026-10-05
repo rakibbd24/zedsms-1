@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 // @ts-ignore
 import { useAuthContext } from "../portal/context/AuthContext";
 // @ts-ignore
@@ -84,7 +84,7 @@ const PROVIDERS = [
 ] as const;
 
 export default function SocialAuthButtons({ action = "Sign in" }: { action?: string }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { socialLogin, isSocialLoginLoading } = useAuthContext();
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState("");
@@ -110,9 +110,9 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
     // 2FA account: same second step as a password sign-in
     if (result?.needsOtp) {
       setNavState("/auth/verify-otp", { mfaToken: result.mfaToken });
-      navigate("/auth/verify-otp", { replace: true });
+      router.replace("/auth/verify-otp");
     } else {
-      navigate("/app/home", { replace: true });
+      router.replace("/app/home");
     }
   };
   const fail = (message: string) => { setBusy(null); setError(message); };

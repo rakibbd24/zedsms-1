@@ -1,3 +1,5 @@
+"use client";
+
 import Navbar from "../components/Navbar";
 import PricingCalculator from "../components/PricingCalculator";
 import Faq from "../components/Faq";

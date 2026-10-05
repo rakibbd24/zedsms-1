@@ -1,3 +1,5 @@
+"use client";
+
 import { Bullets, Callout, LegalLayout, P, Section, SubHeading } from "../components/LegalLayout";
 
 const toc = [

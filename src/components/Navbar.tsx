@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { useAuthContext } from "../portal/context/AuthContext";
 
 // images live in public/assets/ (served from the site root)
@@ -14,7 +14,7 @@ const navLinks = [
 
 function NavLink({ label, to, className, onClick }: { label: string; to: string | null; className: string; onClick?: () => void }) {
   return to ? (
-    <Link to={to} className={className} onClick={onClick}>{label}</Link>
+    <Link href={to} className={className} onClick={onClick}>{label}</Link>
   ) : (
     <a href="#" className={className}>{label}</a>
   );
@@ -31,7 +31,7 @@ export default function Navbar() {
       <nav className="mx-auto max-w-[1290px] bg-white rounded-[28px]">
         <div className="flex items-center justify-between pl-5 sm:pl-7 pr-2 sm:pr-3 py-2 sm:py-3">
           <div className="flex items-center gap-12">
-            <Link to="/" className="flex items-center gap-2.5" aria-label="ZEDSMS home">
+            <Link href="/" className="flex items-center gap-2.5" aria-label="ZEDSMS home">
               <img src={imgLogoMark} alt="ZEDSMS" className="size-7" />
               <img src={imgLogoText} alt="" className="h-4 w-[85px]" />
             </Link>
@@ -45,7 +45,7 @@ export default function Navbar() {
           </div>
           <div className="flex items-center gap-2">
             {isLoggedIn ? (
-              <Link to="/app/home" className="lift inline-flex items-center gap-2 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full pl-1.5 pr-4 sm:pr-[22px] py-1.5 font-display font-medium text-sm text-white whitespace-nowrap">
+              <Link href="/app/home" className="lift inline-flex items-center gap-2 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full pl-1.5 pr-4 sm:pr-[22px] py-1.5 font-display font-medium text-sm text-white whitespace-nowrap">
                 <span aria-hidden="true" className="flex items-center justify-center size-7 sm:size-8 rounded-full bg-white/20 text-xs font-semibold">
                   {initial}
                 </span>
@@ -53,10 +53,10 @@ export default function Navbar() {
               </Link>
             ) : (
               <>
-                <Link to="/auth/signin" className="lift hidden sm:inline-flex border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
+                <Link href="/auth/signin" className="lift hidden sm:inline-flex border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
                   Sign in
                 </Link>
-                <Link to="/auth/signup" className="lift bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-4 sm:px-[22px] py-2.5 sm:py-3 font-display font-medium text-sm text-white whitespace-nowrap">
+                <Link href="/auth/signup" className="lift bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-4 sm:px-[22px] py-2.5 sm:py-3 font-display font-medium text-sm text-white whitespace-nowrap">
                   Get started
                 </Link>
               </>
@@ -83,7 +83,7 @@ export default function Navbar() {
             ))}
             {!isLoggedIn && (
               <li className="sm:hidden pt-2">
-                <Link to="/auth/signin" className="block w-full text-center border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
+                <Link href="/auth/signin" className="block w-full text-center border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
                   Sign in
                 </Link>
               </li>

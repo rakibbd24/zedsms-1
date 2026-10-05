@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../components/Navbar";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import Footer from "../components/Footer";
@@ -113,8 +116,8 @@ const AuthTabs = ({ active }: { active: "signin" | "signup" }) => {
   const off = `${base} text-[#6B6F76] hover:text-[#0f1013]`;
   return (
     <div className="flex gap-1 mb-7 bg-[#f4f5f7] p-1 rounded-xl">
-      <Link to="/auth/signin" replace className={active === "signin" ? on : off} aria-current={active === "signin" ? "page" : undefined}>Sign in</Link>
-      <Link to="/auth/signup" replace className={active === "signup" ? on : off} aria-current={active === "signup" ? "page" : undefined}>Sign up</Link>
+      <Link href="/auth/signin" replace className={active === "signin" ? on : off} aria-current={active === "signin" ? "page" : undefined}>Sign in</Link>
+      <Link href="/auth/signup" replace className={active === "signup" ? on : off} aria-current={active === "signup" ? "page" : undefined}>Sign up</Link>
     </div>
   );
 };
@@ -151,7 +154,7 @@ const AuthShell = ({ children, footnote }: { children: React.ReactNode; footnote
 
         {footnote && (
           <p className="text-center text-xs text-[#9CA1A9] mt-6 leading-relaxed">
-            By continuing you agree to ZEDSMS's <Link to="/terms-of-service" className={legal}>Terms of Service</Link> and <Link to="/privacy-policy" className={legal}>Privacy Policy</Link>.
+            By continuing you agree to ZEDSMS's <Link href="/terms-of-service" className={legal}>Terms of Service</Link> and <Link href="/privacy-policy" className={legal}>Privacy Policy</Link>.
           </p>
         )}
       </div>
@@ -162,11 +165,10 @@ const AuthShell = ({ children, footnote }: { children: React.ReactNode; footnote
 
 // ============ SIGN IN PAGE ============
 function SignInPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
   // set when the 2FA step sends the user back (challenge expired or used up), or
   // ?expired=1 when the API rejected a stale session (see api/client)
-  const expired = new URLSearchParams(location.search).get("expired") === "1";
+  const expired = useSearchParams().get("expired") === "1";
   const [navNotice] = React.useState(() => readNavState<{ notice?: string }>("/auth/signin")?.notice);
   React.useEffect(() => clearNavState("/auth/signin"), []);
   const notice = navNotice || (expired ? "Your session has expired. Please sign in again." : undefined);
@@ -213,9 +215,9 @@ function SignInPage() {
           // short-lived challenge in router state, never the password
           if (result?.needsOtp) {
             setNavState("/auth/verify-otp", { mfaToken: result.mfaToken, email });
-            navigate("/auth/verify-otp", { replace: true });
+            router.replace("/auth/verify-otp");
           } else {
-            setTimeout(() => navigate("/app/home"), 300);
+            setTimeout(() => router.push("/app/home"), 300);
           }
         },
         onError: (error: any) => {
@@ -272,7 +274,7 @@ function SignInPage() {
       <SocialAuthButtons action="Sign in" />
 
       <p className="mt-6 text-center text-sm text-[#6B6F76]">
-        Don't have an account? <Link to="/auth/signup" replace className="text-[#2155f5] hover:underline font-medium">Sign up</Link>
+        Don't have an account? <Link href="/auth/signup" replace className="text-[#2155f5] hover:underline font-medium">Sign up</Link>
       </p>
     </AuthShell>
   );
@@ -287,7 +289,7 @@ const Requirement = ({ met, children }: { met: boolean; children: React.ReactNod
 );
 
 function SignUpPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { signup, isSignupLoading } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -316,7 +318,7 @@ function SignUpPage() {
     signup(
       { email: email.trim(), password, password_confirmation: confirm },
       {
-        onSuccess: () => { setTimeout(() => navigate("/app/home"), 300); },
+        onSuccess: () => { setTimeout(() => router.push("/app/home"), 300); },
         // the API client throws ApiError(message) — it has no axios-style .response,
         // so reading that always fell back to the generic text and hid the real reason
         onError: (error: any) => {
@@ -366,7 +368,7 @@ function SignUpPage() {
               aria-invalid={!!errors.agreed} aria-describedby={errors.agreed ? "signup-terms-error" : undefined}
               className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[#2155f5]" />
             <span className="leading-snug">
-              I agree to the <Link to="/terms-of-service" className={legal}>Terms of Service</Link> and <Link to="/privacy-policy" className={legal}>Privacy Policy</Link>.
+              I agree to the <Link href="/terms-of-service" className={legal}>Terms of Service</Link> and <Link href="/privacy-policy" className={legal}>Privacy Policy</Link>.
             </span>
           </label>
           <FieldError id="signup-terms-error">{errors.agreed}</FieldError>
@@ -380,7 +382,7 @@ function SignUpPage() {
       <SocialAuthButtons action="Sign up" />
 
       <p className="mt-6 text-center text-sm text-[#6B6F76]">
-        Already have an account? <Link to="/auth/signin" replace className="text-[#2155f5] hover:underline font-medium">Sign in</Link>
+        Already have an account? <Link href="/auth/signin" replace className="text-[#2155f5] hover:underline font-medium">Sign in</Link>
       </p>
     </AuthShell>
   );

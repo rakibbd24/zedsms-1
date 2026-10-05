@@ -1,5 +1,7 @@
+"use client";
+
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuthContext } from "../portal/context/AuthContext";
@@ -7,7 +9,7 @@ import { useAuthContext } from "../portal/context/AuthContext";
 import { getEmailVerifyStatus, resendVerificationEmail } from "../portal/api/auth";
 
 export function EmailVerificationPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, logout, refreshUser } = useAuthContext();
   const [resendAfter, setResendAfter] = React.useState(0);
   const [isResending, setIsResending] = React.useState(false);
@@ -28,7 +30,7 @@ export function EmailVerificationPage() {
       if (verified && !stopped) {
         clearInterval(timer);
         await refreshUser?.();
-        navigate("/app/home", { replace: true });
+        router.replace("/app/home");
       }
     };
 
@@ -43,7 +45,7 @@ export function EmailVerificationPage() {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [navigate, refreshUser]);
+  }, [router, refreshUser]);
 
   const handleResendEmail = async () => {
     if (resendAfter > 0) return;
@@ -143,7 +145,7 @@ export function EmailVerificationPage() {
               <button
                 onClick={async () => {
                   await logout();
-                  navigate("/auth/signin");
+                  router.push("/auth/signin");
                 }}
                 className="w-full bg-white border border-[#E1E2E7] text-[#2155f5] font-display font-medium py-3 rounded-full transition-colors hover:bg-[#f9f9fa]"
               >

@@ -1,5 +1,7 @@
+"use client";
+
 import { type CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import Navbar from "../components/Navbar";
 import Coverage from "../components/Coverage";
 import Cta from "../components/Cta";
@@ -142,14 +144,14 @@ export default function Features() {
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Link
-              to="/auth/signup"
+              href="/auth/signup"
               className="lift inline-flex items-center justify-center gap-2.5 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-white whitespace-nowrap"
             >
               Get Started
               <img src={imgArrowWhite} alt="" className="size-4" />
             </Link>
             <Link
-              to="/pricing"
+              href="/pricing"
               className="lift inline-flex items-center justify-center gap-2.5 bg-white hover:bg-[#eef1fb] border border-[#e6e6e6] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-[#2155f5] whitespace-nowrap"
             >
               See pricing

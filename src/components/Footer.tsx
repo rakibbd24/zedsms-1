@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 // images live in public/assets/ (served from the site root)
 const imgLogoMark = "/assets/footer/logo-mark.svg";
@@ -33,7 +33,7 @@ export default function Footer() {
         <div className="mx-auto max-w-[1290px] flex flex-col lg:flex-row lg:items-start lg:justify-between gap-12">
           <div className="flex flex-col gap-8 lg:gap-10 w-full max-w-[320px] lg:shrink-0">
             <div className="flex flex-col gap-6">
-              <Link to="/" className="flex items-center gap-3" aria-label="ZEDSMS home">
+              <Link href="/" className="flex items-center gap-3" aria-label="ZEDSMS home">
                 <img src={imgLogoMark} alt="" className="size-[42px]" />
                 <img src={imgLogoText} alt="" className="h-[23.6px] w-[128.2px]" />
               </Link>
@@ -79,7 +79,7 @@ export default function Footer() {
                   {g.links.map((l) => (
                     <li key={l.label}>
                       {l.href.startsWith("/") ? (
-                        <Link to={l.href} className="font-sans text-base leading-6 text-[#494c52] hover:text-[#2155f5] transition-colors break-all sm:break-normal">
+                        <Link href={l.href} className="font-sans text-base leading-6 text-[#494c52] hover:text-[#2155f5] transition-colors break-all sm:break-normal">
                           {l.label}
                         </Link>
                       ) : (

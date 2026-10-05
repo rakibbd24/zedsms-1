@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 // Figma has the Canada and Australia flags swapped; assigned correctly here.
 import { usePrivatePricing, type PrivateCountryPricing } from "../api/publicPricing";
 
@@ -125,7 +125,7 @@ export default function Pricing() {
 
           <p className="font-sans text-base leading-6 text-[#494c52] text-center">
             US private numbers include 50 free inbound SMS, then $0.03 each.{" "}
-            <Link to="/pricing" className="text-[#2155f5] hover:underline whitespace-nowrap">
+            <Link href="/pricing" className="text-[#2155f5] hover:underline whitespace-nowrap">
               See the full pricing checker →
             </Link>
           </p>

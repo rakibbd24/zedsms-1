@@ -1,5 +1,7 @@
+"use client";
+
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 // @ts-ignore
@@ -42,8 +44,8 @@ const COPY: Record<Exclude<Status, "checking">, { icon: string; title: string; b
 };
 
 export function VerificationSuccessPage() {
-  const navigate = useNavigate();
-  const { search } = useLocation();
+  const router = useRouter();
+  const search = useSearchParams().toString();
   const { isLoggedIn, refreshUser } = useAuthContext();
 
   const params = React.useMemo(() => new URLSearchParams(search), [search]);
@@ -126,7 +128,7 @@ export function VerificationSuccessPage() {
 
             <div className="space-y-3">
               <button
-                onClick={() => navigate(verified && isLoggedIn ? "/app/home" : "/auth/signin")}
+                onClick={() => router.push(verified && isLoggedIn ? "/app/home" : "/auth/signin")}
                 disabled={status === "checking"}
                 className="w-full bg-[#2155f5] hover:bg-[#1a46d1] disabled:opacity-50 text-white font-display font-medium py-3 rounded-full transition-colors"
               >

@@ -1,5 +1,7 @@
+"use client";
+
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 // @ts-ignore
@@ -10,12 +12,11 @@ import { setNavState } from "../lib/navState";
 // ?code&state. The code is handed to our backend, which exchanges it for an
 // id_token (that call needs the client secret, so it can't happen here).
 export function TelegramCallbackPage() {
-  const navigate = useNavigate();
-  const { search } = useLocation();
+  const router = useRouter();
   const [error, setError] = React.useState("");
 
   React.useEffect(() => {
-    const params = new URLSearchParams(search);
+    const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const state = params.get("state");
     const denied = params.get("error");
@@ -23,7 +24,7 @@ export function TelegramCallbackPage() {
 
     if (denied || !code) {
       setNavState("/auth/signin", { notice: denied === "access_denied" ? "Telegram sign-in was cancelled." : "Telegram sign-in didn't complete. Please try again." });
-      navigate("/auth/signin", { replace: true });
+      router.replace("/auth/signin");
       return;
     }
 
@@ -33,9 +34,9 @@ export function TelegramCallbackPage() {
         // 2FA account: same second step as any other sign-in
         if (result?.needsOtp) {
           setNavState("/auth/verify-otp", { mfaToken: result.mfaToken });
-          navigate("/auth/verify-otp", { replace: true });
+          router.replace("/auth/verify-otp");
         } else {
-          navigate("/app/home", { replace: true });
+          router.replace("/app/home");
         }
       })
       .catch((err: any) => {
@@ -43,7 +44,7 @@ export function TelegramCallbackPage() {
       });
 
     return () => { cancelled = true; };
-  }, [search, navigate]);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-[#f9f9fa] flex flex-col">
@@ -73,7 +74,7 @@ export function TelegramCallbackPage() {
             </p>
             {error && (
               <button
-                onClick={() => navigate("/auth/signin", { replace: true })}
+                onClick={() => router.replace("/auth/signin")}
                 className="w-full bg-[#2155f5] hover:bg-[#1a46d1] text-white font-display font-medium py-3 rounded-full transition-colors"
               >
                 Back to sign in

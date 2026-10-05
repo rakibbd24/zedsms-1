@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import CountrySelect, { type Country } from "./CountrySelect";
 import { allCountries } from "../data/countries";
@@ -545,7 +545,7 @@ export default function PricingCalculator() {
                 </div>
 
                 <Link
-                  to="/auth/signup"
+                  href="/auth/signup"
                   className="lift bg-[#2155f5] hover:bg-[#1a46d1] flex gap-2.5 items-center justify-center px-6 py-3 rounded-full w-full"
                 >
                   <span className="font-display font-medium text-sm leading-5 text-white">Get started now</span>
@@ -623,7 +623,7 @@ export default function PricingCalculator() {
               </div>
 
               <Link
-                to="/auth/signup"
+                href="/auth/signup"
                 className="lift bg-[#2155f5] hover:bg-[#1a46d1] flex gap-2.5 items-center justify-center px-6 py-3 rounded-full w-full"
               >
                 <span className="font-display font-medium text-sm leading-5 text-white">Get started now</span>
