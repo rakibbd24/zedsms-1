@@ -4,8 +4,7 @@
 existing portal — **approach A**: the portal is kept as-is (React Router) and mounted inside
 a client-only Next.js catch-all route.
 
-**Status:** Stage 4 done in code (portal + payment returns mounted under Next.js, portal code untouched) —
-waiting on your real-account test (§8 portal items) — next: Stage 5 (SEO).
+**Status:** Stage 5 done (SEO layer) — stage 4 real-account test still with you — next: Stage 6 (cut-over + VPS).
 On this branch the Vite build no longer works for landing/auth pages (they use `next/link` / `next/navigation`) —
 use `npm run next:build` / `next:start`; `main` keeps the live Vite site until stage 6. Update the progress log at the bottom after every stage.
 
@@ -212,12 +211,25 @@ stage: **none** (the 3 portal files that differ from `main` are stage 1's `env.t
 - [ ] **Exit (you, real account):** §8 portal checklist — sign in, dashboard, buy, a real top-up return (Stripe /
   Crypto / MixPay), transfer, settings, live SMS + toast, logout.
 
-### Stage 5 — SEO layer  *(needs the production domain)*
-- [ ] Unique `title` / `description` / Open Graph per landing page; `metadataBase` = production domain.
-- [ ] `sitemap.ts` (landing pages only), `robots.ts` (disallow `/app/`, `/auth/`, payment paths).
-- [ ] Canonical URLs; JSON-LD: Organization, SoftwareApplication (iOS/Android), FAQPage (from `Faq.tsx`).
-- [ ] Features page gets an `<h1>` **using an existing heading's look** (no visual change).
-- **Exit:** Rich Results Test passes; `curl` of each page shows its own title/meta. **Commit.**
+### Stage 5 — SEO layer  *(domain: https://zedsms.com)* ✅
+- [x] `src/lib/seo.ts` `pageMetadata()` — per landing page: title (≤60 chars, layout template `%s | ZEDSMS`),
+      description (≤160), canonical URL, Open Graph + Twitter with the share image. Copy matches each page's content:
+      `/` "Virtual Phone Number for SMS Verification — ZEDSMS", `/features`, `/pricing`, `/about`, legal pages.
+- [x] noindex: `/app/*`, payment returns, verify-email/otp, Telegram callback, verification-success (`noindex, nofollow`);
+      sign-in/up `noindex, follow` + tab titles "Sign in" / "Create your account".
+- [x] `src/app/sitemap.ts` (6 landing URLs) and `src/app/robots.ts` (disallows `/app`, payment paths,
+      `/verification-success`; `/auth` left crawlable so its noindex is seen).
+- [x] JSON-LD (`components/JsonLd.tsx`): Organization (logo `public/logo.png` 512px, email, app store links) + WebSite
+      site-wide; FAQPage (6 Q&A from `components/faqData.ts`, the same source the visible FAQ now renders) + 2 ×
+      MobileApplication on `/`.
+- [x] Features `<h1>` — already present (the earlier grep missed a multi-line tag); nothing to change.
+- **Exit:** every page serves its own title/description/canonical (checked with curl) ✅ · JSON-LD parses ✅ ·
+  screenshots **18/18 identical** ✅ · hand-offs **7/7**, portal checks **7/7** ✅.
+- [ ] After go-live (you): run https://search.google.com/test/rich-results on `https://zedsms.com/`, submit the sitemap in
+  Google Search Console + Bing Webmaster Tools.
+- Follow-up idea (not done — changes how data loads): the pricing page's server HTML shows `$ — /mo` placeholders
+  because prices load in the browser; fetching them on the server (with hourly revalidation) would put real prices in
+  the HTML for Google.
 
 ### Stage 6 — Cut-over & cleanup
 - [ ] Make Next the default (`dev`, `build`, `start`); remove Vite, `@vitejs/plugin-react`,
@@ -286,6 +298,7 @@ stage: **none** (the 3 portal files that differ from `main` are stage 1's `env.t
 | Date | Stage | Result | Commit |
 |---|---|---|---|
 | 2026-10-05 | Plan written | — | `78dbce8` (main) |
+| 2026-10-05 | Stage 5 — SEO | per-page meta, sitemap, robots, JSON-LD; 18/18 identical, 7/7 + 7/7 checks | see branch |
 | 2026-10-05 | Stage 4 — portal & payments on Next | glue files only, portal untouched; 3 gateways retired; 7/7 portal checks, 18/18 identical | see branch |
 | 2026-10-05 | Stage 3 — landing & auth on Next | real HTML per page; 18/18 identical to Vite baseline; 7/7 checks | see branch |
 | 2026-10-05 | Stage 2 — Next.js scaffold | Next 16.3.8 builds a placeholder; Vite unchanged (18/18 identical, 7/7 checks) | see branch |

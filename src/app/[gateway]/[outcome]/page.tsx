@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import ClientPortal from "../../../views/ClientPortal";
+import { NO_INDEX } from "../../../lib/seo";
 
 // Payment gateway return URLs (/stripe/success, /crypto/cancel, …) → the existing
 // PaymentReturn screen. Only the gateways in PAYMENT_RETURN_PATHS (views/PortalRouter.tsx)
@@ -8,6 +9,8 @@ import ClientPortal from "../../../views/ClientPortal";
 const GATEWAYS = ["stripe", "crypto", "mixpay"];
 
 type Params = Promise<{ gateway: string; outcome: string }>;
+
+export const metadata = NO_INDEX;
 
 export default async function Page({ params }: { params: Params }) {
   const { gateway, outcome } = await params;
