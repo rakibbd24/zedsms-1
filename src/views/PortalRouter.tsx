@@ -15,7 +15,7 @@ import Portal from "./Portal";
 // Where the payment gateways send users back after a top-up (configured on the providers
 // and in the backend). The Next route src/app/[gateway]/[outcome] accepts exactly these.
 // Binance, Payeer and Perfect Money were retired during the migration (stage 4).
-export const PAYMENT_RETURN_PATHS = [
+const PAYMENT_RETURN_PATHS = [
   "/stripe/success", "/stripe/cancel",
   "/crypto/success", "/crypto/cancel",
   "/mixpay/success", "/mixpay/cancel",
