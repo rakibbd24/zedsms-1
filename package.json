@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "next:dev": "next dev --port 3000",
+    "next:dev": "next dev --port 5173",
     "next:build": "next build",
     "next:start": "next start --port 4174",
     "generate:countries": "node scripts/generate-countries.cjs"

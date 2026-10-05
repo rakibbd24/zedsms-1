@@ -167,7 +167,10 @@ Each step is a pure refactor, verified on Vite before moving on.
       builds read the same `.env.local`. Stage 6 only renames the keys and drops the Vite `define`.
 - [x] `src/app/layout.tsx` (global `index.css`, `metadata` + `viewport` copied from `index.html`),
       `src/app/providers.tsx` (one `QueryClient` + `AuthProvider`), placeholder `src/app/page.tsx`.
-- [x] Scripts `next:dev` (port 3000), `next:build`, `next:start` (port 4174) next to the Vite ones; `.next` ignored.
+- [x] Scripts `next:dev`, `next:build`, `next:start` (port 4174) next to the Vite ones; `.next` ignored.
+      **`next:dev` must use port 5173, never 3000:** the backend's Sanctum default stateful list includes
+      `localhost:3000`, so API calls from that origin are treated as first-party SPA requests and fail CSRF with
+      **419** (sign-in breaks). Verified: same request → 419 from `localhost:3000`, 422 from `localhost:5173`.
 - **Exit:** `next build` ✅ (`/` prerendered; head tags, Tailwind + fonts CSS and API URL verified on `next start`) ·
   Vite build ✅ · Vite screenshots **18/18 identical** · hand-off checks **7/7** ✅.
 
