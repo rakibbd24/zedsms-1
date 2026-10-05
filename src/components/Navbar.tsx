@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import imgLogoMark from "../assets/hero/7e3e0.svg";
 import imgLogoText from "../assets/hero/b836f.svg";
+import { useAuthContext } from "../portal/context/AuthContext";
 
 const navLinks = [
   { label: "Features", to: "/features" },
@@ -19,6 +20,9 @@ function NavLink({ label, to, className, onClick }: { label: string; to: string 
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  // a signed-in visitor gets a way back into the portal instead of the auth buttons
+  const { isLoggedIn, user } = useAuthContext();
+  const initial = (user?.email?.[0] || "?").toUpperCase();
 
   return (
     <div className="absolute inset-x-0 top-3 sm:top-5 z-20 px-6 sm:px-8 lg:px-10 xl:px-12 min-[1440px]:px-[75px]">
@@ -38,12 +42,23 @@ export default function Navbar() {
             </ul>
           </div>
           <div className="flex items-center gap-2">
-            <a href="/auth/signin" className="lift hidden sm:inline-flex border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
-              Sign in
-            </a>
-            <a href="/auth/signup" className="lift bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-4 sm:px-[22px] py-2.5 sm:py-3 font-display font-medium text-sm text-white whitespace-nowrap">
-              Get started
-            </a>
+            {isLoggedIn ? (
+              <Link to="/app/home" className="lift inline-flex items-center gap-2 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full pl-1.5 pr-4 sm:pr-[22px] py-1.5 font-display font-medium text-sm text-white whitespace-nowrap">
+                <span aria-hidden="true" className="flex items-center justify-center size-7 sm:size-8 rounded-full bg-white/20 text-xs font-semibold">
+                  {initial}
+                </span>
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth/signin" className="lift hidden sm:inline-flex border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
+                  Sign in
+                </Link>
+                <Link to="/auth/signup" className="lift bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-4 sm:px-[22px] py-2.5 sm:py-3 font-display font-medium text-sm text-white whitespace-nowrap">
+                  Get started
+                </Link>
+              </>
+            )}
             <button
               type="button"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -64,11 +79,13 @@ export default function Navbar() {
                 <NavLink {...l} className="block py-2.5 hover:text-[#2155f5] transition-colors" onClick={() => setMenuOpen(false)} />
               </li>
             ))}
-            <li className="sm:hidden pt-2">
-              <a href="/auth/signin" className="block w-full text-center border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
-                Sign in
-              </a>
-            </li>
+            {!isLoggedIn && (
+              <li className="sm:hidden pt-2">
+                <Link to="/auth/signin" className="block w-full text-center border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
+                  Sign in
+                </Link>
+              </li>
+            )}
           </ul>
         )}
       </nav>

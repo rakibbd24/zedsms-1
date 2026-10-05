@@ -13,6 +13,7 @@ import { EmailVerificationPage } from "./pages/EmailVerification";
 import { OTPVerificationPage } from "./pages/OTPVerification";
 import { AuthProvider } from "./portal/context/AuthContext";
 import { ProtectedRoute } from "./portal/components/ProtectedRoute";
+import { GuestRoute } from "./portal/components/GuestRoute";
 // @ts-ignore
 import PaymentReturn from "./portal/screens/PaymentReturn";
 import { VerificationSuccessPage } from "./pages/VerificationSuccess";
@@ -54,8 +55,8 @@ export default function App() {
             <Route path="/about" element={<About />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
-            <Route path="/auth/signin" element={<SignInPage />} />
-            <Route path="/auth/signup" element={<SignUpPage />} />
+            <Route path="/auth/signin" element={<GuestRoute><SignInPage /></GuestRoute>} />
+            <Route path="/auth/signup" element={<GuestRoute><SignUpPage /></GuestRoute>} />
             <Route path="/auth/verify-email" element={<EmailVerificationPage />} />
             <Route path="/auth/verify-otp" element={<OTPVerificationPage />} />
             {/* Telegram OpenID sends the browser back here */}
