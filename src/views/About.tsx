@@ -4,11 +4,13 @@ import Stats from "../components/Stats";
 import Cta from "../components/Cta";
 import Footer from "../components/Footer";
 import { useReveal } from "../hooks/useReveal";
-import imgBg from "../assets/shared/cloud-background.webp";
-import imgHero from "../assets/about/about-hero-woman-with-app.webp";
-import imgPrivacy from "../assets/about/privacy-shield.png";
-import imgSpeed from "../assets/about/speed-gauge.png";
-import imgPricing from "../assets/about/fair-pricing-wallet.png";
+
+// images live in public/assets/ (served from the site root)
+const imgBg = "/assets/shared/cloud-background.webp";
+const imgHero = "/assets/about/about-hero-woman-with-app.webp";
+const imgPrivacy = "/assets/about/privacy-shield.png";
+const imgSpeed = "/assets/about/speed-gauge.png";
+const imgPricing = "/assets/about/fair-pricing-wallet.png";
 
 const values = [
   {

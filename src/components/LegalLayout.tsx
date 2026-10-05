@@ -2,7 +2,9 @@ import { type CSSProperties, type ReactNode } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import Cta from "./Cta";
-import imgBg from "../assets/shared/cloud-background.webp";
+
+// images live in public/assets/ (served from the site root)
+const imgBg = "/assets/shared/cloud-background.webp";
 
 export type TocItem = { id: string; label: string };
 

@@ -1,19 +1,21 @@
 import { type CSSProperties } from "react";
 import Navbar from "./Navbar";
-import imgBg from "../assets/hero/hero-cloud-background.webp";
+
+// images live in public/assets/ (served from the site root)
+const imgBg = "/assets/hero/hero-cloud-background.webp";
+const imgHero = "/assets/hero/hero-woman-four-countries.webp";
+const imgShieldSmall = "/assets/hero/icon-shield-small.svg";
+const imgAppStore = "/assets/hero/badge-app-store.svg";
+const imgGooglePlay = "/assets/hero/badge-google-play.svg";
+const imgAndroid = "/assets/hero/icon-android.svg";
+const imgApple = "/assets/hero/icon-apple.svg";
+const imgDesktop = "/assets/hero/icon-desktop.svg";
+const imgTelegram = "/assets/hero/icon-telegram.svg";
+const imgLocation = "/assets/hero/icon-location.svg";
+const imgShield = "/assets/hero/icon-shield.svg";
+const imgDollar = "/assets/hero/icon-dollar.svg";
+const imgFlash = "/assets/hero/icon-flash.svg";
 // Placeholder — swap this file for the final hero image
-import imgHero from "../assets/hero/hero-woman-four-countries.webp";
-import imgShieldSmall from "../assets/hero/icon-shield-small.svg";
-import imgAppStore from "../assets/hero/badge-app-store.svg";
-import imgGooglePlay from "../assets/hero/badge-google-play.svg";
-import imgAndroid from "../assets/hero/icon-android.svg";
-import imgApple from "../assets/hero/icon-apple.svg";
-import imgDesktop from "../assets/hero/icon-desktop.svg";
-import imgTelegram from "../assets/hero/icon-telegram.svg";
-import imgLocation from "../assets/hero/icon-location.svg";
-import imgShield from "../assets/hero/icon-shield.svg";
-import imgDollar from "../assets/hero/icon-dollar.svg";
-import imgFlash from "../assets/hero/icon-flash.svg";
 
 const features = [
   {

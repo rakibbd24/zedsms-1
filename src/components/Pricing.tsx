@@ -1,15 +1,17 @@
 import { Link } from "react-router-dom";
-import imgFlagUk from "../assets/pricing/flag-united-kingdom.svg";
-import imgFlagUs from "../assets/pricing/flag-united-states.svg";
 // Figma has the Canada and Australia flags swapped; assigned correctly here.
-import imgFlagCa from "../assets/pricing/flag-canada.svg";
-import imgFlagAu from "../assets/pricing/flag-australia.svg";
-import imgTag from "../assets/pricing/icon-tag.svg";
-import imgGift from "../assets/pricing/icon-gift.svg";
-import imgCall from "../assets/pricing/icon-call.svg";
-import imgRefresh from "../assets/pricing/icon-refresh.svg";
-import imgFlash from "../assets/pricing/icon-flash.svg";
 import { usePrivatePricing, type PrivateCountryPricing } from "../api/publicPricing";
+
+// images live in public/assets/ (served from the site root)
+const imgFlagUk = "/assets/pricing/flag-united-kingdom.svg";
+const imgFlagUs = "/assets/pricing/flag-united-states.svg";
+const imgFlagCa = "/assets/pricing/flag-canada.svg";
+const imgFlagAu = "/assets/pricing/flag-australia.svg";
+const imgTag = "/assets/pricing/icon-tag.svg";
+const imgGift = "/assets/pricing/icon-gift.svg";
+const imgCall = "/assets/pricing/icon-call.svg";
+const imgRefresh = "/assets/pricing/icon-refresh.svg";
+const imgFlash = "/assets/pricing/icon-flash.svg";
 
 // The four featured countries, in the design's order. Prices come from the API.
 const featured = [

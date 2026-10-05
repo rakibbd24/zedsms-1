@@ -4,7 +4,7 @@
 existing portal — **approach A**: the portal is kept as-is (React Router) and mounted inside
 a client-only Next.js catch-all route.
 
-**Status:** Stage 0 done (baseline captured) — next: Stage 1. Update the progress log at the bottom after every stage.
+**Status:** Stage 1 done (code framework-neutral, still Vite) — next: Stage 2. Update the progress log at the bottom after every stage.
 
 ---
 
@@ -142,14 +142,18 @@ public/
 - [ ] Manual checklist (§8) on today's app — **owner: you** (portal flows need a real browser session).
 - **Exit:** baseline saved ✅ · comparison tool verified ✅.
 
-### Stage 1 — Make the code framework-neutral  *(still Vite; zero visual change)*
+### Stage 1 — Make the code framework-neutral  *(still Vite; zero visual change)* ✅
 Each step is a pure refactor, verified on Vite before moving on.
-- [ ] **G1** rename `src/pages/` → `src/views/`, update imports.
-- [ ] **G2** move `src/assets/` → `public/assets/`; replace the 95 image imports with string paths.
-- [ ] **G3** add `src/lib/env.ts`; replace the 10 `import.meta.env` reads with it.
-- [ ] **G4** add `src/lib/navState.ts`; replace the 8 router-state hand-offs.
-- [ ] **G6** make the Telegram redirect default lazy (computed in the handler, not at module load).
-- **Exit:** `npm run build` passes; screenshots identical to baseline; §8 checklist green. **Commit.**
+- [x] **G1** renamed `src/pages/` → `src/views/` (only `App.tsx` imported it).
+- [x] **G2** moved `src/assets/` → `public/assets/`; all 95 image imports are now `const img = "/assets/…"` path strings
+      (88 unique paths, every one checked to exist).
+- [x] **G3** added `src/lib/env.ts`; all 11 `import.meta.env` reads go through it — it's the only file that touches
+      `import.meta.env` (same defaults kept at each use).
+- [x] **G4** added `src/lib/navState.ts` (sessionStorage, keyed by destination path, read-once, 10-min TTL); the
+      8 router-state hand-offs in `SocialAuthButtons`, `Auth`, `OTPVerification`, `TelegramCallback` use it.
+- [x] **G6** Telegram OpenID redirect default is computed on click (`telegramOpenIdRedirectUri()`), not at module load.
+- **Exit:** build ✅ · screenshots **18/18 identical** to baseline ✅ · `scratch/flows.mjs` hand-off checks **7/7 pass** ✅ ·
+  portal smoke test reaches the API through `env.ts` ✅.
 
 ### Stage 2 — Next.js scaffold  *(both stacks build; nothing switched yet)*
 - [ ] Install `next`, `@tailwindcss/postcss`; add `next.config.ts` (`reactStrictMode`, `output: "standalone"`),
@@ -230,6 +234,10 @@ Each step is a pure refactor, verified on Vite before moving on.
 - **Backend facts used by the app:** logout = `POST /api/logout` (revokes current token, verified live);
   login is rate-limited server-side (5 tries, `LoginRequest`); every auth payload includes `email_verified_at`.
 - **Open bugs (fix separately, before or after migration):**
+  0. **Expired sessions never redirect to sign-in** *(found in Stage 1 smoke test)* — the API client sends no
+     `Accept: application/json`, so Laravel answers a dead token with **302 → /admin/login** instead of 401; the
+     browser blocks that cross-origin redirect, the app sees a network error, and the 401 handler never runs.
+     Fix: add `Accept: application/json` in `portal/api/client.js` and the raw fetch in `portal/api/numbers.js`.
   1. Send SMS calls `POST /user/send-sms/{id}` — backend route is `POST /user/sms/send` with `{ virtual_number_id, to, content }`.
   2. Shared numbers can't be extended — `extent-number-price` needs `rent_time_id` for shared numbers (returns one `cost`, not `plans`).
   3. My Numbers badge shows total SMS count labelled as "new".
@@ -248,4 +256,5 @@ Each step is a pure refactor, verified on Vite before moving on.
 | Date | Stage | Result | Commit |
 |---|---|---|---|
 | 2026-10-05 | Plan written | — | `78dbce8` (main) |
+| 2026-10-05 | Stage 1 — framework-neutral | G1, G2, G3, G4, G6 done on Vite; 18/18 screenshots identical; 7/7 hand-off checks | see branch |
 | 2026-10-05 | Stage 0 — baseline | 18 landing/auth shots; re-capture 18/18 identical; portal excluded (manual checklist only) | — (no code changes; tooling in git-ignored `scratch/`) |

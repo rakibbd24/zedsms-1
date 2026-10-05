@@ -1,4 +1,5 @@
-import imgGlobe from "../assets/coverage/coverage-globe.webp";
+// images live in public/assets/ (served from the site root)
+const imgGlobe = "/assets/coverage/coverage-globe.webp";
 
 export default function Coverage() {
   return (

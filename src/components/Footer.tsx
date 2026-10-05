@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
-import imgLogoMark from "../assets/footer/logo-mark.svg";
-import imgLogoText from "../assets/footer/logo-wordmark.svg";
-import imgInstagram from "../assets/footer/social-instagram.svg";
-import imgX from "../assets/footer/social-x.svg";
-import imgYoutube from "../assets/footer/social-youtube.svg";
-import imgTiktok from "../assets/footer/social-tiktok.svg";
-import imgAppStore from "../assets/footer/badge-app-store.svg";
-import imgGooglePlay from "../assets/footer/badge-google-play.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgLogoMark = "/assets/footer/logo-mark.svg";
+const imgLogoText = "/assets/footer/logo-wordmark.svg";
+const imgInstagram = "/assets/footer/social-instagram.svg";
+const imgX = "/assets/footer/social-x.svg";
+const imgYoutube = "/assets/footer/social-youtube.svg";
+const imgTiktok = "/assets/footer/social-tiktok.svg";
+const imgAppStore = "/assets/footer/badge-app-store.svg";
+const imgGooglePlay = "/assets/footer/badge-google-play.svg";
 
 // Fill in each profile URL to show its icon — icons without one stay hidden rather
 // than linking to "#".

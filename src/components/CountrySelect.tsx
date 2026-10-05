@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import imgChevron from "../assets/pricing/calc/icon-chevron-down.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgChevron = "/assets/pricing/calc/icon-chevron-down.svg";
 
 export type Country = {
   code: string;

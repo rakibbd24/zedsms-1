@@ -1,25 +1,27 @@
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuthContext } from "../portal/context/AuthContext";
 // @ts-ignore
 import { isMfaChallengeExpired } from "../portal/api/auth";
+import { clearNavState, readNavState, setNavState } from "../lib/navState";
 
 // Second step of a 2FA sign-in. /login issued a short-lived challenge instead of
 // a token; it is exchanged here for the real one with an authenticator code or a
 // one-time recovery code. No credentials are held on this page.
 export function OTPVerificationPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const challenge = (location.state || {}) as { mfaToken?: string; email?: string };
+  // taken once on arrival (left by sign-in / social sign-in / Telegram callback)
+  const [challenge] = React.useState(() => readNavState<{ mfaToken?: string; email?: string }>("/auth/verify-otp") || {});
+  React.useEffect(() => clearNavState("/auth/verify-otp"), []);
   const { verifyMfa, isVerifyMfaLoading } = useAuthContext();
   const [mode, setMode] = React.useState<"otp" | "recovery">("otp");
   const [otp, setOtp] = React.useState("");
   const [recoveryCode, setRecoveryCode] = React.useState("");
   const [error, setError] = React.useState("");
 
-  // Opened directly, or reloaded (router state is dropped) — there is no
+  // Opened directly, or reloaded (the hand-off is read once) — there is no
   // challenge to finish, so the sign-in starts again.
   React.useEffect(() => {
     if (!challenge.mfaToken) navigate("/auth/signin", { replace: true });
@@ -28,7 +30,8 @@ export function OTPVerificationPage() {
   // The challenge lives 5 minutes; send people back before they type into a dead form.
   React.useEffect(() => {
     const t = setTimeout(() => {
-      navigate("/auth/signin", { replace: true, state: { notice: "That sign-in attempt timed out. Please sign in again." } });
+      setNavState("/auth/signin", { notice: "That sign-in attempt timed out. Please sign in again." });
+      navigate("/auth/signin", { replace: true });
     }, 5 * 60 * 1000);
     return () => clearTimeout(t);
   }, [navigate]);
@@ -56,10 +59,8 @@ export function OTPVerificationPage() {
             onError: (err: any) => {
               // expired, or too many wrong codes — the attempt is over
               if (isMfaChallengeExpired(err)) {
-                navigate("/auth/signin", {
-                  replace: true,
-                  state: { notice: err?.body?.message || "That sign-in attempt expired. Please sign in again." },
-                });
+                setNavState("/auth/signin", { notice: err?.body?.message || "That sign-in attempt expired. Please sign in again." });
+                navigate("/auth/signin", { replace: true });
                 reject(err);
                 return;
               }

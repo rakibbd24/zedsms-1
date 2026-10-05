@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import imgLogoMark from "../assets/hero/logo-mark.svg";
-import imgLogoText from "../assets/hero/logo-wordmark.svg";
 import { useAuthContext } from "../portal/context/AuthContext";
+
+// images live in public/assets/ (served from the site root)
+const imgLogoMark = "/assets/hero/logo-mark.svg";
+const imgLogoText = "/assets/hero/logo-wordmark.svg";
 
 const navLinks = [
   { label: "Features", to: "/features" },

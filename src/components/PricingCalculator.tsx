@@ -16,20 +16,22 @@ import {
   type RentTime,
   type SharedService,
 } from "../api/publicPricing";
-import imgCheck from "../assets/pricing/calc/icon-check.svg";
-import imgCall from "../assets/pricing/calc/icon-call.svg";
-import imgFlagUk from "../assets/pricing/flag-united-kingdom.svg";
-import imgFlagUsRound from "../assets/pricing/flag-united-states.svg";
-import imgFlagCa from "../assets/pricing/flag-canada.svg";
-import imgFlagAu from "../assets/pricing/flag-australia.svg";
-import imgPhoneMissed from "../assets/pricing/calc/icon-phone-missed.svg";
-import imgSmartPhone from "../assets/pricing/calc/icon-smartphone.svg";
-import imgLandline from "../assets/pricing/calc/icon-landline.svg";
-import imgMessageIn from "../assets/pricing/calc/icon-message-in.svg";
-import imgMessageOut from "../assets/pricing/calc/icon-message-out.svg";
-import imgInfo from "../assets/pricing/calc/icon-info.svg";
-import imgArrowRight from "../assets/pricing/calc/icon-arrow-right.svg";
-import imgShare from "../assets/pricing/calc/icon-share.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgCheck = "/assets/pricing/calc/icon-check.svg";
+const imgCall = "/assets/pricing/calc/icon-call.svg";
+const imgFlagUk = "/assets/pricing/flag-united-kingdom.svg";
+const imgFlagUsRound = "/assets/pricing/flag-united-states.svg";
+const imgFlagCa = "/assets/pricing/flag-canada.svg";
+const imgFlagAu = "/assets/pricing/flag-australia.svg";
+const imgPhoneMissed = "/assets/pricing/calc/icon-phone-missed.svg";
+const imgSmartPhone = "/assets/pricing/calc/icon-smartphone.svg";
+const imgLandline = "/assets/pricing/calc/icon-landline.svg";
+const imgMessageIn = "/assets/pricing/calc/icon-message-in.svg";
+const imgMessageOut = "/assets/pricing/calc/icon-message-out.svg";
+const imgInfo = "/assets/pricing/calc/icon-info.svg";
+const imgArrowRight = "/assets/pricing/calc/icon-arrow-right.svg";
+const imgShare = "/assets/pricing/calc/icon-share.svg";
 
 // The savings chip uses the best saving across all countries' plans.
 function getBadges(maxSavings: number | undefined) {

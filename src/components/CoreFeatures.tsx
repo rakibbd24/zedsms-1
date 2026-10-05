@@ -1,9 +1,10 @@
-import imgDevices from "../assets/core-features/icon-devices.svg";
-import imgRefresh from "../assets/core-features/icon-refresh.svg";
-import imgSwap from "../assets/core-features/icon-swap.svg";
-import imgClock from "../assets/core-features/icon-clock.svg";
-import imgShield from "../assets/core-features/icon-shield.svg";
-import imgServices from "../assets/core-features/icon-services.svg";
+// images live in public/assets/ (served from the site root)
+const imgDevices = "/assets/core-features/icon-devices.svg";
+const imgRefresh = "/assets/core-features/icon-refresh.svg";
+const imgSwap = "/assets/core-features/icon-swap.svg";
+const imgClock = "/assets/core-features/icon-clock.svg";
+const imgShield = "/assets/core-features/icon-shield.svg";
+const imgServices = "/assets/core-features/icon-services.svg";
 
 const features = [
   {

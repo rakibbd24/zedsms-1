@@ -1,6 +1,7 @@
-import imgCountry from "../assets/how-it-works/step-choose-country.png";
-import imgNumber from "../assets/how-it-works/step-pick-number.png";
-import imgPlan from "../assets/how-it-works/step-choose-plan.png";
+// images live in public/assets/ (served from the site root)
+const imgCountry = "/assets/how-it-works/step-choose-country.png";
+const imgNumber = "/assets/how-it-works/step-pick-number.png";
+const imgPlan = "/assets/how-it-works/step-choose-plan.png";
 
 const steps = [
   {

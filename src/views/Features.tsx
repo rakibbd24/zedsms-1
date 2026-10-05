@@ -5,20 +5,22 @@ import Coverage from "../components/Coverage";
 import Cta from "../components/Cta";
 import Footer from "../components/Footer";
 import { useReveal } from "../hooks/useReveal";
-import imgBg from "../assets/shared/cloud-background.webp";
-import imgPhoto from "../assets/features/woman-checking-phone.webp";
-import imgLockBubble from "../assets/features/secure-message-bubble.webp";
-import imgMessageLock from "../assets/features/icon-message-lock.svg";
-import imgCall from "../assets/features/icon-call.svg";
-import imgLockPassword from "../assets/features/icon-lock-password.svg";
-import imgFlash from "../assets/features/icon-flash.svg";
-import imgDevices from "../assets/features/icon-devices.svg";
-import imgRefresh from "../assets/features/icon-refresh.svg";
-import imgArrowUpDown from "../assets/features/icon-arrow-up-down.svg";
-import imgDollarSend from "../assets/features/icon-dollar-send.svg";
-import imgShare from "../assets/features/icon-share.svg";
-import imgArrowWhite from "../assets/features/icon-arrow-right-white.svg";
-import imgArrowBlue from "../assets/features/icon-arrow-right-blue.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgBg = "/assets/shared/cloud-background.webp";
+const imgPhoto = "/assets/features/woman-checking-phone.webp";
+const imgLockBubble = "/assets/features/secure-message-bubble.webp";
+const imgMessageLock = "/assets/features/icon-message-lock.svg";
+const imgCall = "/assets/features/icon-call.svg";
+const imgLockPassword = "/assets/features/icon-lock-password.svg";
+const imgFlash = "/assets/features/icon-flash.svg";
+const imgDevices = "/assets/features/icon-devices.svg";
+const imgRefresh = "/assets/features/icon-refresh.svg";
+const imgArrowUpDown = "/assets/features/icon-arrow-up-down.svg";
+const imgDollarSend = "/assets/features/icon-dollar-send.svg";
+const imgShare = "/assets/features/icon-share.svg";
+const imgArrowWhite = "/assets/features/icon-arrow-right-white.svg";
+const imgArrowBlue = "/assets/features/icon-arrow-right-blue.svg";
 
 const features = [
   {

@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { env } from "../../lib/env";
 
 // my-numbers returns `type: "shared" | "private"` but no mobile_number_type_id,
 // so derive the id the number endpoints expect: shared → 1, private → 2.
@@ -37,7 +38,7 @@ export async function getNumbers() {
     // The web endpoint lives at the backend root (/web/user/my-numbers, not under /api) and
     // returns { numbers, pagination }; /api/user/my-numbers is a raw paginator instead.
     // Derive the root from the configured API URL so local and production both work.
-    const root = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/api\/?$/, "");
+    const root = env.apiBaseUrl.replace(/\/api\/?$/, "");
     const response = await fetch(`${root}/web/user/my-numbers?paginate=1`, {
       method: "GET",
       headers: {

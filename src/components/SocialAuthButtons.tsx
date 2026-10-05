@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../portal/context/AuthContext";
 // @ts-ignore
 import { startTelegramOpenId } from "../portal/api/auth";
+import { env } from "../lib/env";
+import { setNavState } from "../lib/navState";
 
 // Google / Apple / Telegram sign-in, shared by the sign-in and sign-up pages.
 // Each provider is shown only when its client id is configured, so there are
@@ -13,13 +15,15 @@ import { startTelegramOpenId } from "../portal/api/auth";
 //   VITE_TELEGRAM_OPENID_CLIENT_ID + VITE_TELEGRAM_OPENID_REDIRECT_URI
 //                            Telegram OpenID Connect (preferred)
 //   VITE_TELEGRAM_BOT        Telegram Login Widget, used when OpenID isn't set
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
-const APPLE_SERVICE_ID = import.meta.env.VITE_APPLE_SERVICE_ID || "";
-const APPLE_REDIRECT_URI = import.meta.env.VITE_APPLE_REDIRECT_URI || "";
-const TELEGRAM_BOT = (import.meta.env.VITE_TELEGRAM_BOT || "").replace("@", "");
-const TELEGRAM_OPENID_CLIENT_ID = import.meta.env.VITE_TELEGRAM_OPENID_CLIENT_ID || "";
-const TELEGRAM_OPENID_REDIRECT_URI =
-  import.meta.env.VITE_TELEGRAM_OPENID_REDIRECT_URI || `${window.location.origin}/auth/telegram/callback`;
+const GOOGLE_CLIENT_ID = env.googleClientId;
+const APPLE_SERVICE_ID = env.appleServiceId;
+const APPLE_REDIRECT_URI = env.appleRedirectUri;
+const TELEGRAM_BOT = env.telegramBot.replace("@", "");
+const TELEGRAM_OPENID_CLIENT_ID = env.telegramOpenIdClientId;
+// resolved on click, not at module load: `window` doesn't exist while a page is
+// server-rendered (Next.js), and reading it here would crash the render
+const telegramOpenIdRedirectUri = () =>
+  env.telegramOpenIdRedirectUri || `${window.location.origin}/auth/telegram/callback`;
 // OpenID is the better path (audience-bound id_token); the widget is the fallback
 const TELEGRAM_MODE = TELEGRAM_OPENID_CLIENT_ID ? "openid" : TELEGRAM_BOT ? "widget" : "off";
 
@@ -95,7 +99,7 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
   const withTelegram = async () => {
     setError(""); setBusy("telegram");
     try {
-      await startTelegramOpenId({ clientId: TELEGRAM_OPENID_CLIENT_ID, redirectUri: TELEGRAM_OPENID_REDIRECT_URI });
+      await startTelegramOpenId({ clientId: TELEGRAM_OPENID_CLIENT_ID, redirectUri: telegramOpenIdRedirectUri() });
     } catch {
       fail("Could not start Telegram sign-in. Please try again.");
     }
@@ -105,7 +109,8 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
     setBusy(null);
     // 2FA account: same second step as a password sign-in
     if (result?.needsOtp) {
-      navigate("/auth/verify-otp", { state: { mfaToken: result.mfaToken }, replace: true });
+      setNavState("/auth/verify-otp", { mfaToken: result.mfaToken });
+      navigate("/auth/verify-otp", { replace: true });
     } else {
       navigate("/app/home", { replace: true });
     }

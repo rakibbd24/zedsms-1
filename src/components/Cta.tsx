@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-import imgBg from "../assets/cta/cta-background.webp";
-import imgArrow from "../assets/cta/icon-arrow-right-blue.svg";
-import imgAndroid from "../assets/cta/icon-android.svg";
-import imgApple from "../assets/cta/icon-apple.svg";
-import imgDesktop from "../assets/cta/icon-desktop.svg";
-import imgTelegram from "../assets/cta/icon-telegram.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgBg = "/assets/cta/cta-background.webp";
+const imgArrow = "/assets/cta/icon-arrow-right-blue.svg";
+const imgAndroid = "/assets/cta/icon-android.svg";
+const imgApple = "/assets/cta/icon-apple.svg";
+const imgDesktop = "/assets/cta/icon-desktop.svg";
+const imgTelegram = "/assets/cta/icon-telegram.svg";
 
 export default function Cta() {
   return (

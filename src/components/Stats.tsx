@@ -1,5 +1,7 @@
 import { Fragment } from "react";
-import imgDivider from "../assets/stats/divider.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgDivider = "/assets/stats/divider.svg";
 
 const stats = [
   // Figma reads "Sountries live" — typo corrected.

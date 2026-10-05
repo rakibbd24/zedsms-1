@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { env } from "../lib/env";
 
 // Public pricing for the marketing pages — the unauthenticated /pricing/*
 // endpoints (see zedsms-backend/docs/pricing-api.md). All amounts are USD;
 // call rates are per minute, SMS per message.
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const BASE_URL = env.apiBaseUrl;
 
 // Service icons / country flags come back as paths relative to the backend root.
 const ASSET_BASE = BASE_URL.replace(/\/api\/?$/, "/");

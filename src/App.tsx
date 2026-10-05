@@ -1,26 +1,26 @@
 import { lazy, Suspense, useLayoutEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Home from "./pages/Home";
+import Home from "./views/Home";
 // Loaded on demand: the portal alone is most of the bundle, so the home page no longer
 // ships it. Home and the auth pages stay in the main chunk.
-const Features = lazy(() => import("./pages/Features"));
-const About = lazy(() => import("./pages/About"));
-const Pricing = lazy(() => import("./pages/Pricing"));
-const Portal = lazy(() => import("./pages/Portal"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
-const TermsOfService = lazy(() => import("./pages/TermsOfService"));
-import { SignInPage, SignUpPage } from "./pages/Auth";
-import { EmailVerificationPage } from "./pages/EmailVerification";
-import { OTPVerificationPage } from "./pages/OTPVerification";
+const Features = lazy(() => import("./views/Features"));
+const About = lazy(() => import("./views/About"));
+const Pricing = lazy(() => import("./views/Pricing"));
+const Portal = lazy(() => import("./views/Portal"));
+const PrivacyPolicy = lazy(() => import("./views/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./views/TermsOfService"));
+import { SignInPage, SignUpPage } from "./views/Auth";
+import { EmailVerificationPage } from "./views/EmailVerification";
+import { OTPVerificationPage } from "./views/OTPVerification";
 import { AuthProvider } from "./portal/context/AuthContext";
 import { ProtectedRoute } from "./portal/components/ProtectedRoute";
 import { GuestRoute } from "./portal/components/GuestRoute";
 // @ts-ignore
 const PaymentReturn = lazy(() => import("./portal/screens/PaymentReturn"));
-import { VerificationSuccessPage } from "./pages/VerificationSuccess";
-import { TelegramCallbackPage } from "./pages/TelegramCallback";
-import NotFound from "./pages/NotFound";
+import { VerificationSuccessPage } from "./views/VerificationSuccess";
+import { TelegramCallbackPage } from "./views/TelegramCallback";
+import NotFound from "./views/NotFound";
 
 // Where the payment gateways send users back after a top-up (configured on the
 // providers and in the backend) — all handled by one return page.

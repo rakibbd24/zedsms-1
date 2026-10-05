@@ -1,5 +1,6 @@
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
+import { env } from "../../lib/env";
 
 // Live updates over Laravel Reverb (Pusher protocol), same setup as the legacy
 // dashboard: one private channel per user, `zedsms.{userId}`, carrying the
@@ -9,14 +10,13 @@ import Pusher from "pusher-js";
 // The Reverb key is public (it only identifies the app); the private channel is
 // authorised per user through /broadcasting/auth with the portal's bearer token.
 
-const env = import.meta.env;
-const API_BASE = env.VITE_API_BASE_URL || "";
+const API_BASE = env.apiBaseUrl;
 
 const CONFIG = {
-  key: env.VITE_REVERB_APP_KEY || "p2wlngweboszvivkxtlw",
-  host: env.VITE_REVERB_HOST || "control.zedsms.com",
-  port: Number(env.VITE_REVERB_PORT || 443),
-  scheme: env.VITE_REVERB_SCHEME || "https",
+  key: env.reverbAppKey || "p2wlngweboszvivkxtlw",
+  host: env.reverbHost || "control.zedsms.com",
+  port: Number(env.reverbPort || 443),
+  scheme: env.reverbScheme || "https",
 };
 
 // Laravel wraps every broadcast notification in this event; the leading dot
@@ -51,7 +51,7 @@ export function connectRealtime(token) {
   });
   echoToken = token;
 
-  if (import.meta.env.DEV) {
+  if (env.isDev) {
     const conn = echo.connector.pusher.connection;
     conn.bind("connected", () => console.info("[realtime] connected"));
     conn.bind("error", (err) => console.warn("[realtime] connection error", err));

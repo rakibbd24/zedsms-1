@@ -4,7 +4,9 @@ import Faq from "../components/Faq";
 import Cta from "../components/Cta";
 import Footer from "../components/Footer";
 import { useReveal } from "../hooks/useReveal";
-import imgBg from "../assets/shared/cloud-background.webp";
+
+// images live in public/assets/ (served from the site root)
+const imgBg = "/assets/shared/cloud-background.webp";
 
 export default function PricingPage() {
   useReveal();

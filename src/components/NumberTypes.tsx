@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
-import imgPrivate from "../assets/number-types/private-number-app.webp";
-import imgShared from "../assets/number-types/shared-number-services.webp";
-import imgArrow from "../assets/number-types/icon-arrow-right-white.svg";
-import imgCheck from "../assets/number-types/icon-check.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgPrivate = "/assets/number-types/private-number-app.webp";
+const imgShared = "/assets/number-types/shared-number-services.webp";
+const imgArrow = "/assets/number-types/icon-arrow-right-white.svg";
+const imgCheck = "/assets/number-types/icon-check.svg";
 
 const offers = [
   {

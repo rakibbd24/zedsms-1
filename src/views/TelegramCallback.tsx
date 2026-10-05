@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 // @ts-ignore
 import { finishTelegramOpenId } from "../portal/api/auth";
+import { setNavState } from "../lib/navState";
 
 // Where Telegram's OpenID consent screen sends the browser back to, with
 // ?code&state. The code is handed to our backend, which exchanges it for an
@@ -21,10 +22,8 @@ export function TelegramCallbackPage() {
     let cancelled = false;
 
     if (denied || !code) {
-      navigate("/auth/signin", {
-        replace: true,
-        state: { notice: denied === "access_denied" ? "Telegram sign-in was cancelled." : "Telegram sign-in didn't complete. Please try again." },
-      });
+      setNavState("/auth/signin", { notice: denied === "access_denied" ? "Telegram sign-in was cancelled." : "Telegram sign-in didn't complete. Please try again." });
+      navigate("/auth/signin", { replace: true });
       return;
     }
 
@@ -33,7 +32,8 @@ export function TelegramCallbackPage() {
         if (cancelled) return;
         // 2FA account: same second step as any other sign-in
         if (result?.needsOtp) {
-          navigate("/auth/verify-otp", { state: { mfaToken: result.mfaToken }, replace: true });
+          setNavState("/auth/verify-otp", { mfaToken: result.mfaToken });
+          navigate("/auth/verify-otp", { replace: true });
         } else {
           navigate("/app/home", { replace: true });
         }

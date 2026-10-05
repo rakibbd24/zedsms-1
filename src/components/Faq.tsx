@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Collapse from "./Collapse";
-import imgChevron from "../assets/faq/icon-chevron-down.svg";
+
+// images live in public/assets/ (served from the site root)
+const imgChevron = "/assets/faq/icon-chevron-down.svg";
 
 const faqs = [
   {

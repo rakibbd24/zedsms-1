@@ -1,10 +1,12 @@
 import { useState } from "react";
 import Collapse from "./Collapse";
-import imgMeeting from "../assets/use-cases/use-case-meeting-new-people.webp";
-import imgMarketplace from "../assets/use-cases/use-case-marketplace.webp";
-import imgFamily from "../assets/use-cases/use-case-family.webp";
-import imgTravel from "../assets/use-cases/use-case-travel.webp";
-import imgVerification from "../assets/use-cases/use-case-verification.webp";
+
+// images live in public/assets/ (served from the site root)
+const imgMeeting = "/assets/use-cases/use-case-meeting-new-people.webp";
+const imgMarketplace = "/assets/use-cases/use-case-marketplace.webp";
+const imgFamily = "/assets/use-cases/use-case-family.webp";
+const imgTravel = "/assets/use-cases/use-case-travel.webp";
+const imgVerification = "/assets/use-cases/use-case-verification.webp";
 
 const useCases = [
   {

@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import Footer from "../components/Footer";
 import { useAuth } from "../portal/hooks/useAuth";
+import { clearNavState, readNavState, setNavState } from "../lib/navState";
 
 const emailValid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const pwChecks = (p: string) => ({
@@ -166,8 +167,9 @@ function SignInPage() {
   // set when the 2FA step sends the user back (challenge expired or used up), or
   // ?expired=1 when the API rejected a stale session (see api/client)
   const expired = new URLSearchParams(location.search).get("expired") === "1";
-  const notice = (location.state as { notice?: string } | null)?.notice
-    || (expired ? "Your session has expired. Please sign in again." : undefined);
+  const [navNotice] = React.useState(() => readNavState<{ notice?: string }>("/auth/signin")?.notice);
+  React.useEffect(() => clearNavState("/auth/signin"), []);
+  const notice = navNotice || (expired ? "Your session has expired. Please sign in again." : undefined);
   const { login, isLoginLoading } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -210,7 +212,8 @@ function SignInPage() {
           // 2FA account: no token yet — finish on the OTP screen, carrying only the
           // short-lived challenge in router state, never the password
           if (result?.needsOtp) {
-            navigate("/auth/verify-otp", { state: { mfaToken: result.mfaToken, email }, replace: true });
+            setNavState("/auth/verify-otp", { mfaToken: result.mfaToken, email });
+            navigate("/auth/verify-otp", { replace: true });
           } else {
             setTimeout(() => navigate("/app/home"), 300);
           }
