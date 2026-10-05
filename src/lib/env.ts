@@ -2,9 +2,8 @@
 // build time and are all public (client ids, the API URL, the Reverb key) — never put a
 // secret here. Defaults are applied where each value is used, as before.
 //
-// Each read must stay a literal `process.env.NEXT_PUBLIC_*` expression: Next.js inlines
-// exactly that text (next.config.ts `env`), and vite.config.ts `define` replaces the same
-// text in the Vite build. Both map the current VITE_* names in .env files until stage 6.
+// Each read must stay a literal `process.env.NEXT_PUBLIC_*` expression — Next.js inlines
+// exactly that text at build time (next.config.ts `env`).
 export const env = {
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "",
   googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",

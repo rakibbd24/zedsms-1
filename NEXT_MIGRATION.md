@@ -4,9 +4,11 @@
 existing portal — **approach A**: the portal is kept as-is (React Router) and mounted inside
 a client-only Next.js catch-all route.
 
-**Status:** Stage 5 done (SEO layer) — stage 4 real-account test still with you — next: Stage 6 (cut-over + VPS).
-On this branch the Vite build no longer works for landing/auth pages (they use `next/link` / `next/navigation`) —
-use `npm run next:build` / `next:start`; `main` keeps the live Vite site until stage 6. Update the progress log at the bottom after every stage.
+**Status:** Stages 0–6 done in code; Next.js is the only stack on `main` (local, not pushed). Remaining: deploy to
+the VPS (AlmaLinux 9 + cPanel — README → Deploy), DNS for zedsms.com, provider settings, then push `main`.
+The pre-migration Vite app is on the `react-zedsms` branch (pushed).
+Branches: `main` = Next.js (the former `next-migration` branch, fast-forwarded and deleted); `react-zedsms` = the
+Vite app as it was before the migration. Update the progress log at the bottom after every stage.
 
 ---
 
@@ -234,14 +236,24 @@ stage: **none** (the 3 portal files that differ from `main` are stage 1's `env.t
   because prices load in the browser; fetching them on the server (with hourly revalidation) would put real prices in
   the HTML for Google.
 
-### Stage 6 — Cut-over & cleanup
-- [ ] Make Next the default (`dev`, `build`, `start`); remove Vite, `@vitejs/plugin-react`,
-      `@tailwindcss/vite`, `vite.config.ts`, `index.html`, `src/main.tsx`, `src/App.tsx`, `vercel.json`.
-- [ ] Rename env vars to `NEXT_PUBLIC_*` in `.env.local`, `.env.example`, README.
-- [ ] VPS deploy files: Nginx config (proxy to Next, cache `/_next/static/` 1 year), PM2 config, deploy steps in README.
-- [ ] Update OAuth/payment settings only if anything changed (paths stay the same).
-- **Exit:** production build deployed to a staging subdomain, full §8 checklist + screenshots on
-  staging, then DNS switch. **Merge to `main`.**
+### Stage 6 — Cut-over & cleanup  ✅ (code) · ⏳ deployment (you)
+- [x] Branches: `react-zedsms` created from the old `main` and pushed; `main` fast-forwarded to the migration;
+      `next-migration` deleted.
+- [x] Next is the only stack: scripts `dev` (5173), `dev:mobile`, `build`, `start` (4173), `lint`; removed `vite`,
+      `@vitejs/plugin-react`, `@tailwindcss/vite`, `vite.config.ts`, `index.html`, `src/main.tsx`, `src/App.tsx`,
+      `vercel.json`, `tsconfig.app.json`, `tsconfig.node.json`, `dist/`; `tsconfig.next.json` → `tsconfig.json`.
+- [x] Env renamed to `NEXT_PUBLIC_*` in `.env.local` (backup of the old file: `scratch/.env.local.before-rename`) and
+      `.env.example`; `next.config.ts` still falls back to `VITE_*` names.
+- [x] **VPS is AlmaLinux 9.8 + cPanel/WHM 138 (Apache, not Nginx)** — deploy files written for that:
+      `scripts/build-standalone.sh` (build + copy static into `.next/standalone`), `ecosystem.config.cjs` (PM2,
+      127.0.0.1:3005), `deploy/apache-proxy.conf` (cPanel userdata include); README → Deploy covers Application
+      Manager (Passenger) or PM2 + Apache proxy, DNS/AutoSSL, provider URLs, updating.
+- **Exit (automated, on the standalone `server.js` = what the VPS runs):** static files, CSS, robots, sitemap, OG image
+  served ✅ · screenshots **18/18 identical** ✅ · hand-offs **7/7** ✅ · portal checks **7/7** ✅.
+- [ ] **You:** deploy on the VPS (README → Deploy), point DNS + AutoSSL, update Google/Apple/Telegram/payment URLs,
+      run the §8 checklist on the live domain, then `git push origin main`.
+- ⚠️ If the GitHub repo is still connected to Vercel with the Vite preset, pushing `main` would trigger a broken
+  Vercel build — disconnect it (or switch its preset to Next.js) before pushing.
 
 ---
 
@@ -301,6 +313,7 @@ stage: **none** (the 3 portal files that differ from `main` are stage 1's `env.t
 | Date | Stage | Result | Commit |
 |---|---|---|---|
 | 2026-10-05 | Plan written | — | `78dbce8` (main) |
+| 2026-10-05 | Stage 6 — cut-over | Vite removed, env renamed, cPanel deploy files; standalone server 18/18 identical, 7/7 + 7/7 | see main |
 | 2026-10-05 | Stage 5 — SEO | per-page meta, sitemap, robots, JSON-LD; 18/18 identical, 7/7 + 7/7 checks | see branch |
 | 2026-10-05 | Stage 4 — portal & payments on Next | glue files only, portal untouched; 3 gateways retired; 7/7 portal checks, 18/18 identical | see branch |
 | 2026-10-05 | Stage 3 — landing & auth on Next | real HTML per page; 18/18 identical to Vite baseline; 7/7 checks | see branch |

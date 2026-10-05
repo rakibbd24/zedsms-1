@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
-// Build-time settings read by src/lib/env.ts. Until the stage 6 rename, .env files still use
-// the VITE_* names, so each NEXT_PUBLIC_* value falls back to its VITE_* twin.
-// (vite.config.ts applies the same mapping, so both builds read identical values.)
+// Build-time settings read by src/lib/env.ts (NEXT_PUBLIC_*, baked in at build time). Each
+// falls back to the pre-migration VITE_* name, so an old .env file still builds correctly.
 const ENV_NAMES = [
   "API_BASE_URL",
   "GOOGLE_CLIENT_ID",
@@ -25,10 +24,8 @@ const nextConfig: NextConfig = {
   // hide the "N" dev-tools button in `next dev` (it sat over the portal sidebar);
   // build errors still show as an overlay. Never shipped in production builds anyway.
   devIndicators: false,
-  // self-contained server for the VPS (node .next/standalone/server.js behind Nginx)
+  // self-contained server for the VPS: node .next/standalone/server.js (see README → Deploy)
   output: "standalone",
-  // Vite keeps tsconfig.json / tsconfig.app.json until the cut-over
-  typescript: { tsconfigPath: "tsconfig.next.json" },
   // this folder is the project root (a stray ~/package-lock.json otherwise confuses Turbopack)
   turbopack: { root: process.cwd() },
   env,
