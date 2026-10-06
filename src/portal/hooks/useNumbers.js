@@ -16,6 +16,19 @@ export function useNumbers() {
   });
 }
 
+// Server-side search over my-numbers. Resolves to the set of uids ("shared:7" / "private:3")
+// that match, so the screen can combine it with its own label filter. Off for an empty query.
+export function useNumberSearch(query) {
+  const term = (query || "").trim();
+  return useQuery({
+    queryKey: ["numbers", "search", term],
+    queryFn: () => getNumbers({ search: term }),
+    enabled: term.length > 0,
+    staleTime: 30 * 1000,
+    select: (rows) => new Set(rows.map((n) => `${String(n.type).toLowerCase() === "private" ? "private" : "shared"}:${n.id}`)),
+  });
+}
+
 export function useExtendNumber() {
   const qc = useQueryClient();
   return useMutation({

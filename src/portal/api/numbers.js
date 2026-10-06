@@ -30,8 +30,13 @@ function assertOk(res, fallback) {
   return res;
 }
 
-// Get user's virtual numbers
-export async function getNumbers() {
+// The backend pages my-numbers at 20 a time (?page=N) and ignores any size parameter, so
+// loading only the first request silently dropped everything past number 20. Walk every page.
+// `search` is the server-side filter: it matches country, service name and the number itself
+// (typed with or without "+", spaces or dashes).
+const MAX_NUMBER_PAGES = 50;
+
+export async function getNumbers({ search } = {}) {
   try {
     const token = localStorage.getItem("zedsms-token");
 
@@ -39,26 +44,31 @@ export async function getNumbers() {
     // returns { numbers, pagination }; /api/user/my-numbers is a raw paginator instead.
     // Derive the root from the configured API URL so local and production both work.
     const root = env.apiBaseUrl.replace(/\/api\/?$/, "");
-    const response = await fetch(`${root}/web/user/my-numbers?paginate=1`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+    const term = (search || "").trim();
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    const fetchPage = async (page) => {
+      const params = new URLSearchParams({ page: String(page) });
+      if (term) params.set("search", term);
+      const response = await fetch(`${root}/web/user/my-numbers?${params}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      // API returns: { status, data: { numbers: [...], pagination: {...} } }
+      return (await response.json())?.data;
+    };
+
+    const first = await fetchPage(1);
+    const all = Array.isArray(first?.numbers) ? [...first.numbers] : [];
+    const lastPage = Math.min(Number(first?.pagination?.last_page) || 1, MAX_NUMBER_PAGES);
+    for (let page = 2; page <= lastPage; page++) {
+      const next = await fetchPage(page);
+      if (Array.isArray(next?.numbers)) all.push(...next.numbers);
     }
-
-    const data = await response.json();
-
-    // API returns: { status, data: { numbers: [...], pagination: {...} } }
-    if (data?.data?.numbers && Array.isArray(data.data.numbers)) {
-      return data.data.numbers;
-    }
-
-    return [];
+    return all;
   } catch (error) {
     console.error("Error fetching numbers:", error);
     return [];
