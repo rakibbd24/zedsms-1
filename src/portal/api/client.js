@@ -28,7 +28,8 @@ function endExpiredSession() {
 
 export async function request(path, { method = "GET", body, headers, authRedirect = true, ...rest } = {}) {
   const token = localStorage.getItem("zedsms-token");
-  const res = await fetch(`${BASE_URL}${path}`, {
+  // an absolute URL passes through (the few web endpoints that live outside /api)
+  const res = await fetch(/^https?:\/\//.test(path) ? path : `${BASE_URL}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",

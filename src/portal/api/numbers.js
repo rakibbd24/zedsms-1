@@ -55,43 +55,32 @@ function stableOrder(rows) {
     || Number(b.id) - Number(a.id));
 }
 
+// Failures throw rather than return an empty list: an empty array would be cached as a
+// successful load (the screen shows "no numbers" and drops what it had), whereas an error lets
+// React Query keep the last good list and retry. Going through the shared client also means a
+// 401 here ends the session like every other call, instead of looking like "no numbers".
 export async function getNumbers({ search } = {}) {
-  try {
-    const token = localStorage.getItem("zedsms-token");
+  // The web endpoint lives at the backend root (/web/user/my-numbers, not under /api) and
+  // returns { numbers, pagination }; /api/user/my-numbers is a raw paginator instead.
+  // Derive the root from the configured API URL so local and production both work.
+  const root = env.apiBaseUrl.replace(/\/api\/?$/, "");
+  const term = (search || "").trim();
 
-    // The web endpoint lives at the backend root (/web/user/my-numbers, not under /api) and
-    // returns { numbers, pagination }; /api/user/my-numbers is a raw paginator instead.
-    // Derive the root from the configured API URL so local and production both work.
-    const root = env.apiBaseUrl.replace(/\/api\/?$/, "");
-    const term = (search || "").trim();
+  const fetchPage = async (page) => {
+    const params = new URLSearchParams({ page: String(page) });
+    if (term) params.set("search", term);
+    // API returns: { status, data: { numbers: [...], pagination: {...} } }
+    return (await api.get(`${root}/web/user/my-numbers?${params}`))?.data;
+  };
 
-    const fetchPage = async (page) => {
-      const params = new URLSearchParams({ page: String(page) });
-      if (term) params.set("search", term);
-      const response = await fetch(`${root}/web/user/my-numbers?${params}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      // API returns: { status, data: { numbers: [...], pagination: {...} } }
-      return (await response.json())?.data;
-    };
-
-    const first = await fetchPage(1);
-    const all = Array.isArray(first?.numbers) ? [...first.numbers] : [];
-    const lastPage = Math.min(Number(first?.pagination?.last_page) || 1, MAX_NUMBER_PAGES);
-    for (let page = 2; page <= lastPage; page++) {
-      const next = await fetchPage(page);
-      if (Array.isArray(next?.numbers)) all.push(...next.numbers);
-    }
-    return stableOrder(all);
-  } catch (error) {
-    console.error("Error fetching numbers:", error);
-    return [];
+  const first = await fetchPage(1);
+  const all = Array.isArray(first?.numbers) ? [...first.numbers] : [];
+  const lastPage = Math.min(Number(first?.pagination?.last_page) || 1, MAX_NUMBER_PAGES);
+  for (let page = 2; page <= lastPage; page++) {
+    const next = await fetchPage(page);
+    if (Array.isArray(next?.numbers)) all.push(...next.numbers);
   }
+  return stableOrder(all);
 }
 
 // Get extension plans and pricing for a number
