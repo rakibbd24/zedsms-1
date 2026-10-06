@@ -36,6 +36,25 @@ function assertOk(res, fallback) {
 // (typed with or without "+", spaces or dashes).
 const MAX_NUMBER_PAGES = 50;
 
+// The backend sorts by purchase time alone, so numbers bought at the same moment (a bulk
+// order, say) come back in no fixed order — it differs between requests, and the list visibly
+// reshuffles when a refetch lands after the first paint. Re-sort with tie-breakers so the order
+// is the same every time, and drop any row a shifting page boundary delivered twice.
+function stableOrder(rows) {
+  const seen = new Set();
+  const unique = rows.filter((n) => {
+    const key = `${String(n.type).toLowerCase()}:${n.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const time = (n) => Date.parse(n.purchased_at) || 0;
+  return unique.sort((a, b) =>
+    time(b) - time(a)
+    || String(a.type).localeCompare(String(b.type))
+    || Number(b.id) - Number(a.id));
+}
+
 export async function getNumbers({ search } = {}) {
   try {
     const token = localStorage.getItem("zedsms-token");
@@ -68,7 +87,7 @@ export async function getNumbers({ search } = {}) {
       const next = await fetchPage(page);
       if (Array.isArray(next?.numbers)) all.push(...next.numbers);
     }
-    return all;
+    return stableOrder(all);
   } catch (error) {
     console.error("Error fetching numbers:", error);
     return [];
