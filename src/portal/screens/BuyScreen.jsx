@@ -359,7 +359,6 @@ export const BuyScreen = ({ setRoute, openNumber }) => {
               {picked ? picked.number : !isPrivate && svc ? svc.name : "Pick a number"}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", overflow: "hidden" }}>
-              {country && <FlagAvatar iso={country.iso} size={15} />}
               {country ? (isUS && usState ? `${stateName}, ${country.name}` : country.name) : "No country"}{isPrivate ? " · Private" : svc ? ` · ${svc.name}` : " · Shared"}
             </div>
           </div>
