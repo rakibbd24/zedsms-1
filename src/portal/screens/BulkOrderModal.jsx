@@ -3,7 +3,7 @@ import { Icon } from "../components/Icon";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { usePurchaseBulkNumbers } from "../hooks/useBuy";
-import { BuyNotice, SelDot } from "./BuyParts";
+import { BuyNotice, SelDot, pickCard } from "./BuyParts";
 import { BtnSpinner } from "./SettingsScreen";
 
 // ---- bulk order ----

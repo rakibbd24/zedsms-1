@@ -41,7 +41,7 @@ export const StepTitle = ({ n, children, sub, right }) => (
   </div>
 );
 
-const pickCard = (sel) => ({ background: sel ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${sel ? "var(--accent-border)" : "var(--border)"}`, transition: "all 0.14s", textAlign: "left" });
+export const pickCard = (sel) => ({ background: sel ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${sel ? "var(--accent-border)" : "var(--border)"}`, transition: "all 0.14s", textAlign: "left" });
 
 export const SelDot = ({ size = 19 }) => (
   <span style={{ width: size, height: size, borderRadius: 99, background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="check" size={size - 7} strokeWidth={3} style={{ color: "#fff" }} /></span>

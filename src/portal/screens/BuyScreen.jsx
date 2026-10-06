@@ -10,7 +10,7 @@ import { usePrivateCountries, usePrivatePlans, useSharedCountries, useSharedServ
 import { sharedPriceOf, privateUpstreamOf } from "../api/buy";
 import { createPortal } from "react-dom";
 import { BulkOrderModal } from "./BulkOrderModal";
-import { BUY_TYPES, BuyNotice, INBOUND_FREE, INBOUND_RATE, MobilePayBar, NumberGrid, SearchBox, SelDot, ServiceLogo, StepTitle } from "./BuyParts";
+import { BUY_TYPES, BuyNotice, INBOUND_FREE, INBOUND_RATE, MobilePayBar, NumberGrid, SearchBox, SelDot, ServiceLogo, StepTitle, pickCard } from "./BuyParts";
 import { StateSelect, US_STATES } from "./StateSelect";
 
 export const BuyScreen = ({ setRoute, openNumber }) => {
