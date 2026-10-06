@@ -19,7 +19,7 @@ function normalizeUser(user) {
 export async function login({ login, password }) {
   let res;
   try {
-    res = await api.post("/login", { login, password });
+    res = await api.post("/login", { login, password }, { authRedirect: false });
   } catch (err) {
     if (err?.status === 400 && err?.body?.data?.google2fa_enable) {
       return {
@@ -46,7 +46,7 @@ export async function signup({ email, password, password_confirmation }) {
     email,
     password,
     password_confirmation,
-  });
+  }, { authRedirect: false });
   if (res?.data?.token && res?.data?.user) {
     const normalizedUser = normalizeUser(res.data.user);
     localStorage.setItem("zedsms-token", res.data.token);
@@ -61,7 +61,7 @@ export async function signup({ email, password, password_confirmation }) {
 async function completeSocialLogin(path, body, failureMessage) {
   let res;
   try {
-    res = await api.post(path, body);
+    res = await api.post(path, body, { authRedirect: false });
   } catch (err) {
     if (err?.status === 400 && err?.body?.data?.mfa_required) {
       return {
@@ -165,7 +165,7 @@ export async function verifyMfa({ mfaToken, otp, recoveryCode }) {
   const res = await api.post("/login/mfa", {
     mfa_token: mfaToken,
     ...(recoveryCode ? { recovery_code: recoveryCode } : { otp }),
-  });
+  }, { authRedirect: false });
   if (res?.data?.token && res?.data?.user) {
     const normalizedUser = normalizeUser(res.data.user);
     localStorage.setItem("zedsms-token", res.data.token);

@@ -26,7 +26,7 @@ export const DashboardAlerts = () => {
   const handleDismissAnnouncement = async (id) => {
     try {
       await alertService.dismissAnnouncement(id);
-      setAnnouncements(announcements.filter((a) => a.id !== id));
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
     } catch (error) {
       console.error('Error dismissing announcement:', error);
     }
@@ -35,7 +35,7 @@ export const DashboardAlerts = () => {
   const handleDismissAlert = async (id) => {
     try {
       await alertService.dismissAlert(id);
-      setAlerts(alerts.filter((a) => a.id !== id));
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
     } catch (error) {
       console.error('Error dismissing alert:', error);
     }
@@ -44,8 +44,8 @@ export const DashboardAlerts = () => {
   const handleMarkAsRead = async (id) => {
     try {
       await alertService.markAlertAsRead(id);
-      setAlerts(
-        alerts.map((a) => (a.id === id ? { ...a, is_read: true } : a))
+      setAlerts((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, is_read: true } : a))
       );
     } catch (error) {
       console.error('Error marking alert as read:', error);

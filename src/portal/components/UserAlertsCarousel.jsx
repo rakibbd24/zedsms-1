@@ -6,14 +6,16 @@ export const Carousel = ({ items, onDismiss, onRead, itemType = 'alert' }) => {
 
   if (!items || items.length === 0) return null;
 
-  const currentItem = items[currentIndex];
+  // the list can shrink under us (dismissal, refetch) — never index past its end
+  const safeIndex = Math.min(currentIndex, items.length - 1);
+  const currentItem = items[safeIndex];
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev === 0 ? items.length - 1 : prev - 1));
+    setCurrentIndex(safeIndex === 0 ? items.length - 1 : safeIndex - 1);
   };
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev === items.length - 1 ? 0 : prev + 1));
+    setCurrentIndex(safeIndex === items.length - 1 ? 0 : safeIndex + 1);
   };
 
   return (
@@ -27,12 +29,7 @@ export const Carousel = ({ items, onDismiss, onRead, itemType = 'alert' }) => {
       {/* Item Card */}
       <UserAlertItem
         alert={currentItem}
-        onDismiss={() => {
-          onDismiss(currentItem.id);
-          if (currentIndex >= items.length - 1) {
-            setCurrentIndex(Math.max(0, currentIndex - 1));
-          }
-        }}
+        onDismiss={() => onDismiss(currentItem.id)}
         onRead={onRead}
         itemType={itemType}
       />
