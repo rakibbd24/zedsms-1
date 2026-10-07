@@ -4,7 +4,7 @@ import { api } from "./client";
 // dashboard (TopupBalance.vue + PaymentSuccessful.vue / PaymentFailed.vue).
 //
 //   GET  /payment-gateways                     → active gateways, fee, limits
-//   POST /user/payment/{gateway}/create        → { invoice_id, url } (Perfect Money: form fields)
+//   POST /user/payment/{gateway}/create        → { invoice_id, url }
 //   …user pays on the gateway, which sends them back to /{gateway}/success|cancel…
 //   success/cancel acknowledgement endpoints   → marks the order seen / cancelled
 //   POST /user/check-payment-status { trx_id } → Pending | Confirmed | Declined | Cancelled
@@ -23,10 +23,9 @@ const GATEWAYS = {
   stripe:       { name: "Stripe",        create: "/user/payment/stripe/create" },
   crypto:       { name: "Crypto",        create: "/user/payment/crypto/create" },
   mixpay:       { name: "MixPay",        create: "/user/payment/mixpay/create" },
-  binance:      { name: "BinancePay",    create: "/user/payment/binance/create" },
-  payeer:       { name: "Payeer",        create: "/user/payment/payeer/create" },
-  perfectmoney: { name: "Perfect Money", create: "/user/payment/perfectmoney/create" },
 };
+// Binance Pay, Payeer and Perfect Money were retired (their return pages no longer exist),
+// so they're left out here — a gateway missing from this map is never offered.
 const keyOfName = (name) => Object.keys(GATEWAYS).find((k) => GATEWAYS[k].name.toLowerCase() === String(name || "").toLowerCase()) || null;
 
 export async function getPaymentGateways() {
@@ -71,7 +70,7 @@ export const amountError = (gateway, amount) => {
 };
 
 // ---- pending top-up, kept across the round-trip to the gateway ----
-// Stripe, Payeer and Perfect Money don't echo the transaction id back in the return URL.
+// Stripe doesn't echo the transaction id back in the return URL.
 const savePendingTopUp = (entry) => {
   try { localStorage.setItem(PENDING_KEY, JSON.stringify({ ...entry, at: Date.now() })); } catch { /* storage unavailable */ }
 };
@@ -84,36 +83,6 @@ export const readPendingTopUp = () => {
 };
 export const clearPendingTopUp = () => { try { localStorage.removeItem(PENDING_KEY); } catch { /* storage unavailable */ } };
 
-// Perfect Money is a form POST to their checkout, not a redirect URL.
-function submitPerfectMoneyForm(fields) {
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = "https://perfectmoney.com/api/step1.asp";
-  const add = (name, value) => {
-    const input = document.createElement("input");
-    input.type = "hidden"; input.name = name; input.value = value ?? "";
-    form.appendChild(input);
-  };
-  const origin = window.location.origin;
-  add("PAYEE_ACCOUNT", fields.PAYEE_ACCOUNT);
-  add("PAYEE_NAME", fields.PAYEE_NAME);
-  add("PAYMENT_AMOUNT", Number(fields.PAYMENT_AMOUNT).toFixed(2));
-  add("PAYMENT_UNITS", fields.PAYMENT_UNITS || "USD");
-  add("STATUS_URL", fields.STATUS_URL);
-  // same as the legacy app: come back to this site's return pages
-  add("PAYMENT_URL", `${origin}/perfectmoney/success`);
-  add("NOPAYMENT_URL", `${origin}/perfectmoney/cancel`);
-  add("PAYMENT_URL_METHOD", fields.PAYMENT_URL_METHOD || "POST");
-  add("NOPAYMENT_URL_METHOD", fields.NOPAYMENT_URL_METHOD || "POST");
-  add("BAGGAGE_FIELDS", fields.BAGGAGE_FIELDS);
-  add("ORDER_NUM", fields.PAYMENT_ID);
-  add("PAYMENT_ID", fields.PAYMENT_ID);
-  add("SUGGESTED_MEMO", fields.SUGGESTED_MEMO || "");
-  add("PAYMENT_METHOD", "PerfectMoney account");
-  document.body.appendChild(form);
-  form.submit();
-}
-
 // Creates the order and sends the browser to the gateway. Resolves only if it
 // couldn't leave (the page is navigating away on success).
 export async function startTopUp(gateway, amount) {
@@ -124,13 +93,6 @@ export async function startTopUp(gateway, amount) {
     res = await api.post(g.create, { amount: Math.round(amount * 100) / 100 });
   } catch (err) {
     throw new Error(err?.body?.message || err?.body?.data || err?.message || "Could not start the payment");
-  }
-
-  if (gateway.key === "perfectmoney") {
-    if (!res?.success || !res.data) throw new Error(res?.message || "Could not start the payment");
-    savePendingTopUp({ gateway: gateway.key, trxId: res.invoice_id || res.data.PAYMENT_ID, amount });
-    submitPerfectMoneyForm(res.data);
-    return;
   }
 
   if (res?.status !== "success" || !res.url) throw new Error(res?.message || "Could not start the payment");
@@ -153,15 +115,6 @@ export async function acknowledgeReturn(gatewayKey, outcome, trxId) {
     case "crypto":
     case "mixpay": // MixPay returns through the NOWPayments/crypto success & cancel URLs
       res = await api.get(`/payment/crypto/${ok ? "success" : "cancel"}?${q}`);
-      break;
-    case "binance":
-      res = await api.post(`/payment/binance/${ok ? "success" : "cancel"}`, { trx_id: trxId });
-      break;
-    case "payeer":
-      res = await api.post(`/payment/payeer/${ok ? "success" : "cancel"}`, { trx_id: trxId });
-      break;
-    case "perfectmoney":
-      res = await api.post(`/payment/perfectmoney/${ok ? "success" : "cancel"}`, { trx_id: trxId });
       break;
     default:
       return null;

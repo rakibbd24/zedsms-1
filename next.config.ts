@@ -29,6 +29,25 @@ const nextConfig: NextConfig = {
   // this folder is the project root (a stray ~/package-lock.json otherwise confuses Turbopack)
   turbopack: { root: process.cwd() },
   env,
+  // don't advertise the framework in every response
+  poweredByHeader: false,
+  // Basic hardening for every page. Framing is refused so the portal (balance transfer,
+  // top-up) can't be overlaid by another site for clickjacking. No full CSP: the sign-in
+  // pages load Google, Apple and Telegram scripts, which would each need allow-listing.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

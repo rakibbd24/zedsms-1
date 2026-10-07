@@ -333,12 +333,13 @@ export const NumbersScreen = () => {
   const doSend = ({ to, body }) => {
     if (current) {
       sendSmsMutation.mutate({ numberId: current.id, to, body }, {
-        onSuccess: () => {
+        onSuccess: (res) => {
           setModal(null);
           setMsgTab("inbox");
-          showToast(`Message sent to ${to}`);
+          if (res?.pendingReview) showToast(res.message || "Your message is under review", "accent");
+          else showToast(`Message sent to ${to}`);
         },
-        onError: () => showToast("Failed to send SMS", "danger")
+        onError: (err) => showToast(err?.message || "Failed to send SMS", "danger")
       });
     }
   };

@@ -7,7 +7,8 @@
     "dev": "next dev --port 5173",
     "dev:mobile": "next dev --port 5173 -H 0.0.0.0",
     "build": "next build",
-    "start": "next start --port 4173",
+    "postbuild": "cp -r public .next/standalone/ && mkdir -p .next/standalone/.next && rm -rf .next/standalone/.next/static && cp -r .next/static .next/standalone/.next/",
+    "start": "PORT=4173 node .next/standalone/server.js",
     "lint": "oxlint",
     "generate:countries": "node scripts/generate-countries.cjs"
   },

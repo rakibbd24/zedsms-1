@@ -214,11 +214,19 @@ export async function updateAutoRenew(numberId, enabled, typeId) {
   }
 }
 
-// Send SMS from a number
+// Send an SMS from a private number (virtual_numbers row).
+// POST /user/sms/send { virtual_number_id, to, content }
+//   200 { status: "success", cost }              sent and charged
+//   202 { status: "pending_review", message }    held by the anti-scam check, cost reserved
+//   4xx { status: "error", message }             rejected (blocked, no rate, low balance, …)
 export async function sendSmsFromNumber(numberId, { to, body }) {
+  let res;
   try {
-    return api.post(`/user/send-sms/${numberId}`, { to, message: body });
-  } catch {
-    throw new Error("Failed to send SMS");
+    res = await api.post("/user/sms/send", { virtual_number_id: numberId, to, content: body });
+  } catch (err) {
+    throw new Error(err?.body?.message || err?.message || "Failed to send SMS");
   }
+  if (res?.status === "pending_review") return { pendingReview: true, message: res.message };
+  if (res?.status !== "success") throw new Error(res?.message || "Failed to send SMS");
+  return { pendingReview: false, cost: Number(res.cost) || 0 };
 }

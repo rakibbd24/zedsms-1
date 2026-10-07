@@ -11,6 +11,7 @@ import { useUser } from "../hooks/useUser";
 import { copyText } from "../lib/clipboard";
 import { useProfile, useChangePassword, useRequestEmailChange, useVerifyEmailChange, useSessions, useRevokeSession, useRevokeOtherSessions, use2fa, useGenerate2faSecret, useEnable2fa, useDisable2fa, useRegenerateRecoveryCodes, useDeleteAccount } from "../hooks/useSettings";
 import { useAuthContext } from "../context/AuthContext";
+import { holdSessionEnd } from "../api/client";
 import { NotificationsSettings } from "./notifications";
 import { BuyNotice } from "./BuyParts";
 
@@ -132,7 +133,7 @@ export const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
   };
   const confirmEmailChange = () => {
     setEmailErr("");
-    verifyEmail.mutate(emailOtp, {
+    verifyEmail.mutate({ otp: emailOtp, email: newEmail.trim() }, {
       onSuccess: (msg) => { setEmailFlow(null); setNewEmail(""); showToast(msg); },
       onError: (e) => setEmailErr(e.message),
     });
@@ -163,6 +164,8 @@ export const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
   // shown once, right after enabling or regenerating — never retrievable later
   const [recoveryCodes, setRecoveryCodes] = React.useState(null);
   const [recoveryAfter, setRecoveryAfter] = React.useState(null); // "enable" | "regenerate"
+  // leaving Settings gives up the hold, so a dead session still ends the usual way
+  React.useEffect(() => () => holdSessionEnd(false), []);
   const [regenOpen, setRegenOpen] = React.useState(false);
   const [regenPwd, setRegenPwd] = React.useState("");
   const [regenErr, setRegenErr] = React.useState("");
@@ -180,7 +183,7 @@ export const SettingsScreen = ({ theme, toggleTheme, onLogout }) => {
     enable2faM.mutate(tfaCode, {
       // every session is revoked server-side, so show the codes first and sign
       // out only once the user confirms they've saved them
-      onSuccess: (res) => { setTfaFlow(null); setRecoveryCodes(res.recoveryCodes || []); setRecoveryAfter("enable"); },
+      onSuccess: (res) => { holdSessionEnd(true); setTfaFlow(null); setRecoveryCodes(res.recoveryCodes || []); setRecoveryAfter("enable"); },
       onError: (e) => setTfaErr(e.message),
     });
   };

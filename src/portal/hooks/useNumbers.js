@@ -98,7 +98,9 @@ export function useSendSmsFromNumber() {
     mutationFn: ({ numberId, to, body }) => sendSmsFromNumber(numberId, { to, body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["messages"] });
-      qc.invalidateQueries({ queryKey: ["sent"] });
+      // sent and held messages both take the cost out of the balance
+      qc.invalidateQueries({ queryKey: ["balance"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
     },
   });
 }

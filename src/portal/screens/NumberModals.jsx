@@ -28,7 +28,8 @@ export function ExtendModal({ number, open, onClose, onConfirm, plans = [], isLo
     return 1;
   };
 
-  const monthlyPlan = plans.find(p => (p.terms || "").toUpperCase().includes("MONTHLY"));
+  // the 1-month plan — "SIX_MONTHLY" also contains "MONTHLY", so match by length, not name
+  const monthlyPlan = plans.find(p => getMonthsForTerm(p.terms) === 1);
   const baseMonthlyPrice = monthlyPlan ? parseFloat(monthlyPlan.cost) : null;
 
   const getDiscount = (planCost, planTerms) => {

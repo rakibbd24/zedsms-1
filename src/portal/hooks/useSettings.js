@@ -4,6 +4,7 @@ import {
   getSessions, revokeSession, revokeOtherSessions,
   get2fa, generate2faSecret, enable2fa, disable2fa, regenerateRecoveryCodes, deleteAccount,
 } from "../api/settings";
+import { updateStoredUser } from "../api/auth";
 
 export function useProfile() {
   return useQuery({ queryKey: ["profile"], queryFn: getProfile });
@@ -17,11 +18,15 @@ export function useRequestEmailChange() {
   return useMutation({ mutationFn: requestEmailChange });
 }
 
+// Called with { otp, email } — the API answers with a message only, so the address that
+// was confirmed is written into the stored session here (sidebar, nav, transfer self-check).
 export function useVerifyEmailChange() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: verifyEmailChange,
-    onSuccess: () => {
+    mutationFn: ({ otp }) => verifyEmailChange(otp),
+    onSuccess: (_msg, { email }) => {
+      const user = email ? updateStoredUser({ email, email_verified_at: new Date().toISOString() }) : null;
+      if (user) qc.setQueryData(["auth:user"], user);
       qc.invalidateQueries({ queryKey: ["profile"] });
       qc.invalidateQueries({ queryKey: ["me"] });
     },

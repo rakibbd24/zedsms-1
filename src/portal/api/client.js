@@ -18,8 +18,16 @@ export class ApiError extends Error {
 // call failing. Any 401 on an authenticated request ends the session and sends them to
 // sign in instead — once, however many requests fail together.
 let sessionEnding = false;
+// Turning on 2FA revokes every session server-side while the one-time recovery codes are
+// still on screen. A background refresh (balance poll, tab refocus) would then 401 and
+// redirect away, losing the codes for good — so Settings holds the redirect until the user
+// has saved them and signs out themselves.
+let sessionEndHeld = false;
+export function holdSessionEnd(held) {
+  sessionEndHeld = held;
+}
 function endExpiredSession() {
-  if (sessionEnding) return;
+  if (sessionEnding || sessionEndHeld) return;
   sessionEnding = true;
   localStorage.removeItem("zedsms-token");
   localStorage.removeItem("zedsms-user");

@@ -28,12 +28,6 @@ const GATEWAY_LOOK = {
     brand: { label: "via nowpayments.io", color: "#266EF8" },
     tags: [{ name: "BTC", color: "#F7931A" }, { name: "ETH", color: "#627EEA" }, { name: "USDT", color: "#26A17B" }, { name: "USDC", color: "#2775CA" }, { name: "LTC", color: "#345D9D" }, { name: "+300 coins", color: "#6B6F76" }],
   },
-  binance: {
-    icon: "qr", tagline: "Pay straight from your Binance account", best: "Binance users",
-    brand: { label: "via Binance Pay", color: "#C99400" }, tags: [{ name: "Binance Pay", color: "#F0B90B" }, { name: "USDT", color: "#26A17B" }],
-  },
-  payeer: { icon: "wallet", tagline: "Pay from your Payeer wallet", best: "Payeer users", brand: { label: "via payeer.com", color: "#2F9AE0" }, tags: [] },
-  perfectmoney: { icon: "wallet", tagline: "Pay from your Perfect Money account", best: "Perfect Money users", brand: { label: "via perfectmoney.com", color: "#E5262B" }, tags: [] },
 };
 
 const WalletChip = ({ t }) => (

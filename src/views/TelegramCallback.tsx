@@ -11,6 +11,15 @@ import { setNavState } from "../lib/navState";
 // Where Telegram's OpenID consent screen sends the browser back to, with
 // ?code&state. The code is handed to our backend, which exchanges it for an
 // id_token (that call needs the client secret, so it can't happen here).
+// The authorization code can be redeemed once, and finishTelegramOpenId consumes the saved
+// PKCE verifier. React StrictMode (next dev) runs the effect twice, so the second run would
+// fail with "didn't start here" — share one exchange per code instead.
+const exchanges = new Map<string, Promise<any>>();
+const exchangeOnce = (code: string, state: string | null) => {
+  if (!exchanges.has(code)) exchanges.set(code, finishTelegramOpenId({ code, state }));
+  return exchanges.get(code)!;
+};
+
 export function TelegramCallbackPage() {
   const router = useRouter();
   const [error, setError] = React.useState("");
@@ -28,7 +37,7 @@ export function TelegramCallbackPage() {
       return;
     }
 
-    finishTelegramOpenId({ code, state })
+    exchangeOnce(code, state)
       .then((result: any) => {
         if (cancelled) return;
         // 2FA account: same second step as any other sign-in

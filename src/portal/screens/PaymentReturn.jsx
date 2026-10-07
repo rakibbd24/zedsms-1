@@ -16,11 +16,8 @@ const POLL_EVERY_MS = 4000;
 const POLL_FOR_MS = 90000;
 
 // URL segment → gateway key used by api/topup
-const GATEWAY_OF_SEGMENT = {
-  stripe: "stripe", crypto: "crypto", mixpay: "mixpay", binance: "binance",
-  payeer: "payeer", perfectmoney: "perfectmoney", "perfect-money": "perfectmoney",
-};
-const GATEWAY_LABEL = { stripe: "Stripe", crypto: "Crypto", mixpay: "MixPay", binance: "Binance Pay", payeer: "Payeer", perfectmoney: "Perfect Money" };
+const GATEWAY_OF_SEGMENT = { stripe: "stripe", crypto: "crypto", mixpay: "mixpay" };
+const GATEWAY_LABEL = { stripe: "Stripe", crypto: "Crypto", mixpay: "MixPay" };
 
 const TONE = {
   working: { bg: "linear-gradient(135deg, #2155f5 0%, #5B54E8 100%)", glyph: null },
@@ -120,7 +117,7 @@ export default function PaymentReturn() {
     ? `Your ${label} payment is confirmed and the funds are ready to use.`
     : state.message || `Checking with ${label}. This usually takes a few seconds.`;
 
-  const goPortal = (view) => navigate(`/app?view=${view}`);
+  const goPortal = (view) => navigate(`/app/${view}`);
 
   return (
     <div className="min-h-screen bg-[#f9f9fa] flex flex-col">

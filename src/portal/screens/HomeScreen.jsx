@@ -121,6 +121,8 @@ export const HomeScreen = ({ setRoute, openNumber }) => {
         status: n.status || (daysLeft > 0 ? "active" : "expired"),
         mobile_number_type_id: typeId,
         type: isPrivate ? "Private" : "Shared",
+        // ids are per table, so a shared and a private number can share one — open by uid
+        uid: `${isPrivate ? "private" : "shared"}:${n.id}`,
         country: n.country || "GB",
         // shared numbers are bought for one service; private ones work with any
         service: n.service_name || null,
@@ -217,8 +219,8 @@ export const HomeScreen = ({ setRoute, openNumber }) => {
                   const expiresOn = new Date(n.expiresAt || n.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
                   return (
-                    <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderTop: "1px solid var(--border)" }}>
-                      <button onClick={() => openNumber(n.id)} style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, textAlign: "left" }}>
+                    <div key={n.uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderTop: "1px solid var(--border)" }}>
+                      <button onClick={() => openNumber(n.uid)} style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, textAlign: "left" }}>
                         <FlagAvatar iso={countryIso} size={32} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="mono tnum" style={{ fontSize: 13.5, fontWeight: 550, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{phoneNumber}</div>

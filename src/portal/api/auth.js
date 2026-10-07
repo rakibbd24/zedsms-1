@@ -221,6 +221,16 @@ export async function getMe() {
   return normalizeUser(user);
 }
 
+// The session's user lives in localStorage and is never re-read from the server, so a
+// change the API confirms without returning the user (e.g. a new email) is merged in here.
+export function updateStoredUser(patch) {
+  const current = getMe();
+  if (!current) return null;
+  const next = normalizeUser({ ...current, ...patch });
+  localStorage.setItem("zedsms-user", JSON.stringify(next));
+  return next;
+}
+
 // Sign out on the server too — clearing localStorage alone left the token valid there.
 // POST /logout deletes the token that made the request (currentAccessToken):
 // 200 {"message":"Logged out"}, after which the token answers 401.
