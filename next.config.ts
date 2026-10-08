@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // static files in /public default to `max-age=0`, so every visit revalidated every
+        // image/svg. Cache them for a week, and serve stale for a day while refreshing.
+        source: "/assets/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }],
+      },
+      {
         source: "/:path*",
         headers: [
           { key: "X-Frame-Options", value: "DENY" },

@@ -49,7 +49,7 @@ export default function Faq() {
                     className="flex w-full items-center justify-between gap-4 py-5 sm:py-6 text-left font-display font-normal text-lg leading-6 sm:text-2xl sm:leading-7 text-[#0f1013] hover:text-[#2155f5] transition-colors"
                   >
                     {f.q}
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={imgChevron}
                       alt=""
                       className={`size-5 shrink-0 transition-transform ${isOpen ? "-rotate-90" : "rotate-90"}`}

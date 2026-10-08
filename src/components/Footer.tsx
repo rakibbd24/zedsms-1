@@ -34,8 +34,8 @@ export default function Footer() {
           <div className="flex flex-col gap-8 lg:gap-10 w-full max-w-[320px] lg:shrink-0">
             <div className="flex flex-col gap-6">
               <Link href="/" className="flex items-center gap-3" aria-label="ZEDSMS home">
-                <img src={imgLogoMark} alt="" className="size-[42px]" />
-                <img src={imgLogoText} alt="" className="h-[23.6px] w-[128.2px]" />
+                <img loading="lazy" decoding="async" src={imgLogoMark} alt="" className="size-[42px]" />
+                <img loading="lazy" decoding="async" src={imgLogoText} alt="" className="h-[23.6px] w-[128.2px]" />
               </Link>
               <p className="font-sans text-base leading-6 text-[#494c52]">
                 Get instant private and shared phone numbers across the US, UK, Canada, and Australia for seamless SMS receiving.
@@ -103,10 +103,10 @@ export default function Footer() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <a href="https://apps.apple.com/gb/app/zedsms-second-phone-number/id6763044238" target="_blank" rel="noopener noreferrer">
-              <img src={imgAppStore} alt="Download on the App Store" className="h-12 w-[163px]" />
+              <img loading="lazy" decoding="async" src={imgAppStore} alt="Download on the App Store" className="h-12 w-[163px]" />
             </a>
             <a href="https://play.google.com/store/apps/details?id=com.app.zedsms" target="_blank" rel="noopener noreferrer">
-              <img src={imgGooglePlay} alt="Get it on Google Play" className="h-12 w-[163px]" />
+              <img loading="lazy" decoding="async" src={imgGooglePlay} alt="Get it on Google Play" className="h-12 w-[163px]" />
             </a>
           </div>
         </div>

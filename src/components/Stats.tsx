@@ -18,7 +18,7 @@ export default function Stats() {
         {stats.map((s, i) => (
           <Fragment key={s.label}>
             {i > 0 && (
-              <img src={imgDivider} alt="" aria-hidden className="hidden lg:block h-[42px] w-0.5 shrink-0" />
+              <img loading="lazy" decoding="async" src={imgDivider} alt="" aria-hidden className="hidden lg:block h-[42px] w-0.5 shrink-0" />
             )}
             <div className="flex flex-col-reverse items-center gap-2 text-center lg:w-[210px] lg:shrink-0">
               <dt className="font-sans text-sm leading-5 sm:text-base sm:leading-6 text-[#494c52]">{s.label}</dt>

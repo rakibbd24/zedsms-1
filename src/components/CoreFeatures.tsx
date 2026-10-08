@@ -70,7 +70,7 @@ export default function CoreFeatures() {
           {features.map((f) => (
             <li key={f.title} className="flex flex-col items-center text-center gap-5 sm:items-start sm:text-left lg:gap-6">
               <div className="relative flex items-center justify-center size-14 shrink-0 rounded-full bg-gradient-to-b from-[#2155f5] to-[#698dfb]">
-                <img src={f.icon} alt="" className="size-6" />
+                <img loading="lazy" decoding="async" src={f.icon} alt="" className="size-6" />
                 <span
                   aria-hidden
                   className="absolute inset-0 rounded-full shadow-[inset_0_-3px_12px_rgba(255,255,255,0.24)]"

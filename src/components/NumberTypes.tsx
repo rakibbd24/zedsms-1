@@ -82,7 +82,7 @@ export default function NumberTypes() {
                       className="lift inline-flex items-center justify-center gap-2.5 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-6 py-3 font-display font-medium text-sm leading-5 text-white whitespace-nowrap"
                     >
                       {o.cta}
-                      <img src={imgArrow} alt="" className="size-4" />
+                      <img loading="lazy" decoding="async" src={imgArrow} alt="" className="size-4" />
                     </Link>
                     <span className="font-display font-medium text-sm leading-5 text-[#0f1013] whitespace-nowrap">
                       {o.price}
@@ -94,7 +94,7 @@ export default function NumberTypes() {
               <ul className="flex flex-col gap-3">
                 {o.features.map((f) => (
                   <li key={f} className="flex items-center gap-2">
-                    <img src={imgCheck} alt="" className="size-[18px] shrink-0" />
+                    <img loading="lazy" decoding="async" src={imgCheck} alt="" className="size-[18px] shrink-0" />
                     <span className="font-sans text-base leading-6 text-[#494c52]">{f}</span>
                   </li>
                 ))}

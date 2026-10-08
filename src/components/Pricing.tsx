@@ -95,7 +95,7 @@ export default function Pricing() {
                 )}
                 <div className="flex flex-col gap-7 bg-white rounded-2xl px-3.5 pt-3.5 pb-4 shadow-[0px_24px_32px_0px_rgba(193,193,214,0.16)]">
                   <div className="flex items-center gap-[9px]">
-                    <img src={p.flag} alt="" className="size-11 shrink-0" />
+                    <img loading="lazy" decoding="async" src={p.flag} alt="" className="size-11 shrink-0" />
                     <h3 className="font-display font-medium text-xl leading-7 text-[#0f1013]">
                       {p.country}
                     </h3>
@@ -112,7 +112,7 @@ export default function Pricing() {
                     <ul className="flex flex-col gap-3.5">
                       {[{ icon: imgTag, text: p.annual }, ...sharedDetails].map((d) => (
                         <li key={d.text} className="flex items-center gap-2">
-                          <img src={d.icon} alt="" className="size-4 shrink-0" />
+                          <img loading="lazy" decoding="async" src={d.icon} alt="" className="size-4 shrink-0" />
                           <span className="font-sans text-sm leading-5 text-[#494c52]">{d.text}</span>
                         </li>
                       ))}

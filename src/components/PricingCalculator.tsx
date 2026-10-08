@@ -79,7 +79,7 @@ function toCountry(c: { iso: string; name: string }): Country {
 // Image flags are asset URLs; emoji flags contain none of these characters.
 const renderAnyFlag = (c: Country) =>
   /[/.:]/.test(c.flag) ? (
-    <img src={c.flag} alt="" className="size-6 shrink-0 rounded-full object-cover" />
+    <img loading="lazy" decoding="async" src={c.flag} alt="" className="size-6 shrink-0 rounded-full object-cover" />
   ) : (
     <span className="w-6 shrink-0 text-center text-xl leading-none">{c.flag}</span>
   );
@@ -186,7 +186,7 @@ function InfoTooltip({ text }: { text: string }) {
         onClick={() => setOpen((o) => !o)}
         className="flex items-center justify-center"
       >
-        <img src={imgInfo} alt="" className="size-4" />
+        <img loading="lazy" decoding="async" src={imgInfo} alt="" className="size-4" />
       </button>
       <span
         role="tooltip"
@@ -223,7 +223,7 @@ function ServiceLogo({ service }: { service: ServiceOption }) {
     );
   }
   return (
-    <img
+    <img loading="lazy" decoding="async"
       src={service.flag}
       alt=""
       className="size-6 shrink-0 rounded-md bg-white object-contain"
@@ -407,7 +407,7 @@ export default function PricingCalculator() {
               key={b}
               className="bg-white border border-[#e6e6e6] flex gap-1.5 items-center justify-center px-[18px] py-3.5 rounded-full shadow-[0px_5px_4px_-4px_rgba(67,67,90,0.1)]"
             >
-              <img src={imgCheck} alt="" className="size-[18px]" />
+              <img loading="lazy" decoding="async" src={imgCheck} alt="" className="size-[18px]" />
               <span className="font-sans text-sm leading-5 text-[#0f1013] whitespace-nowrap">{b}</span>
             </li>
           ))}
@@ -421,7 +421,7 @@ export default function PricingCalculator() {
                 <div className="flex flex-col gap-10 items-start w-full">
                   <div className="flex gap-4 items-center w-full">
                     <div className="relative flex items-center justify-center rounded-full shrink-0 size-12 bg-gradient-to-b from-[#2155f5] to-[#698dfb]">
-                      <img src={imgCall} alt="" className="size-5" />
+                      <img loading="lazy" decoding="async" src={imgCall} alt="" className="size-5" />
                       <span
                         aria-hidden
                         className="absolute inset-0 rounded-full shadow-[inset_0_-3px_12px_rgba(255,255,255,0.24)]"
@@ -462,7 +462,7 @@ export default function PricingCalculator() {
                 </div>
 
                 <div className="flex gap-2 items-center justify-center">
-                  <img src={imgCheck} alt="" className="size-[18px]" />
+                  <img loading="lazy" decoding="async" src={imgCheck} alt="" className="size-[18px]" />
                   <span className="font-sans text-sm leading-5 text-[#494c52]">
                     Inbound calls free for all country number
                   </span>
@@ -476,7 +476,7 @@ export default function PricingCalculator() {
                 <div className="flex flex-col gap-10 items-start w-full">
                   <div className="flex gap-4 items-center w-full">
                     <div className="relative flex items-center justify-center rounded-full shrink-0 size-12 bg-gradient-to-b from-[#2155f5] to-[#698dfb]">
-                      <img src={imgPhoneMissed} alt="" className="size-5" />
+                      <img loading="lazy" decoding="async" src={imgPhoneMissed} alt="" className="size-5" />
                       <span
                         aria-hidden
                         className="absolute inset-0 rounded-full shadow-[inset_0_-3px_12px_rgba(255,255,255,0.24)]"
@@ -506,7 +506,7 @@ export default function PricingCalculator() {
                         <li key={r.key} className="w-full">
                           <div className="flex items-center justify-between w-full">
                             <div className="flex gap-3 items-center">
-                              <img src={r.icon} alt="" className="size-6" />
+                              <img loading="lazy" decoding="async" src={r.icon} alt="" className="size-6" />
                               <span className="font-sans font-medium text-base leading-6 text-[#494c52]">
                                 {r.label}
                               </span>
@@ -525,7 +525,7 @@ export default function PricingCalculator() {
                         <li key={r.key} className="w-full">
                           <div className="flex items-center gap-3 w-full">
                             <div className="flex items-center gap-2 shrink-0 whitespace-nowrap py-1">
-                              <img src={r.icon} alt="" className="size-6 shrink-0" />
+                              <img loading="lazy" decoding="async" src={r.icon} alt="" className="size-6 shrink-0" />
                               <span className="flex items-center gap-1.5">
                                 <span className="font-sans font-medium text-[16px] leading-6 text-[#494c52]">
                                   {r.label}
@@ -549,7 +549,7 @@ export default function PricingCalculator() {
                   className="lift bg-[#2155f5] hover:bg-[#1a46d1] flex gap-2.5 items-center justify-center px-6 py-3 rounded-full w-full"
                 >
                   <span className="font-display font-medium text-sm leading-5 text-white">Get started now</span>
-                  <img src={imgArrowRight} alt="" className="size-4" />
+                  <img loading="lazy" decoding="async" src={imgArrowRight} alt="" className="size-4" />
                 </Link>
               </div>
             </div>
@@ -561,7 +561,7 @@ export default function PricingCalculator() {
               <div className="flex flex-col gap-7 items-start w-full">
                 <div className="flex gap-4 items-center">
                   <div className="relative flex items-center justify-center rounded-full shrink-0 size-12 bg-gradient-to-b from-[#2155f5] to-[#698dfb]">
-                    <img src={imgShare} alt="" className="size-5" />
+                    <img loading="lazy" decoding="async" src={imgShare} alt="" className="size-5" />
                     <span
                       aria-hidden
                       className="absolute inset-0 rounded-full shadow-[inset_0_-3px_12px_rgba(255,255,255,0.24)]"
@@ -627,7 +627,7 @@ export default function PricingCalculator() {
                 className="lift bg-[#2155f5] hover:bg-[#1a46d1] flex gap-2.5 items-center justify-center px-6 py-3 rounded-full w-full"
               >
                 <span className="font-display font-medium text-sm leading-5 text-white">Get started now</span>
-                <img src={imgArrowRight} alt="" className="size-4" />
+                <img loading="lazy" decoding="async" src={imgArrowRight} alt="" className="size-4" />
               </Link>
             </div>
           </div>
