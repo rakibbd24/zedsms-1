@@ -142,15 +142,6 @@ const AuthShell = ({ children, footnote }: { children: React.ReactNode; footnote
     <Navbar />
     <div className="flex-1 flex items-center justify-center px-4 pt-28 pb-12 sm:pt-32 md:pb-16">
       <div className="w-full max-w-[420px]">
-        {/* Logo — phones already show it in the header right above, so only from md up */}
-        <div className="hidden md:flex items-center justify-center gap-3 mb-8">
-          <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="8" fill="#2155f5" />
-            <path d="M16 8C11.58 8 8 11.58 8 16s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" fill="white" />
-          </svg>
-          <span className="font-display font-semibold text-2xl text-[#0f1013]">ZEDSMS</span>
-        </div>
-
         <div className="bg-white rounded-[20px] border border-[#e1e2e9] p-6 sm:p-8">{children}</div>
 
         {footnote && (

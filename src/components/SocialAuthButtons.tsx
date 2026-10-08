@@ -7,6 +7,7 @@ import { startTelegramOpenId } from "../portal/api/auth";
 import { env } from "../lib/env";
 import { setNavState } from "../lib/navState";
 import { goToPortal } from "../lib/portalNav";
+import { startGoogleSignIn } from "../lib/googleAuth";
 
 // Google / Apple / Telegram sign-in, shared by the sign-in and sign-up pages.
 // Each provider is shown only when its client id is configured, so there are
@@ -30,18 +31,10 @@ const TELEGRAM_MODE = TELEGRAM_OPENID_CLIENT_ID ? "openid" : TELEGRAM_BOT ? "wid
 
 declare global {
   interface Window {
-    google?: any;
     AppleID?: any;
     onTelegramAuth?: (user: Record<string, unknown>) => void;
   }
 }
-
-// Google Identity Services must be initialized once per page load — re-initializing
-// on every mount (sign-in ↔ sign-up, StrictMode) triggers GSI's "called multiple
-// times" warning and only the last instance works. So initialize once and route the
-// credential to whichever SocialAuthButtons is mounted now.
-let googleInitialized = false;
-let onGoogleCredential: ((res: any) => void) | null = null;
 
 // Loads a third-party script once and resolves when it's ready.
 const scriptCache: Record<string, Promise<void>> = {};
@@ -91,8 +84,7 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
   const [error, setError] = React.useState("");
 
   const available = PROVIDERS.filter((p) => p.enabled);
-  // Telegram is rendered by its own widget below, not as one of our buttons
-  // Google and Telegram render their own official buttons below
+  // Google gets its own full-width row; the Telegram widget renders its own button below
   const buttonProviders = available.filter(
     (p) => p.id !== "google" && !(p.id === "telegram" && TELEGRAM_MODE === "widget")
   );
@@ -124,44 +116,24 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
       onError: (err: any) => fail(err?.message || "Sign-in failed. Please try again."),
     });
 
-  // Google's own button, because the backend wants an ID token (JWT bound to our
-  // client id) rather than an access token, and only Identity Services issues it.
-  const googleHolder = React.useRef<HTMLDivElement>(null);
-  const googleEnabled = available.some((p) => p.id === "google");
-
+  // Google and Telegram leave the page; coming Back restores it from the browser's cache
+  // with the buttons still disabled, so re-enable them
   React.useEffect(() => {
-    if (!googleEnabled) return;
-    let cancelled = false;
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) setBusy(null); };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
-    loadScript("https://accounts.google.com/gsi/client")
-      .then(() => {
-        if (cancelled || !googleHolder.current || !window.google) return;
-        onGoogleCredential = (res: any) => {
-          if (!res?.credential) return fail("Google sign-in was cancelled.");
-          setError(""); setBusy("google");
-          run("google", { idToken: res.credential });
-        };
-        if (!googleInitialized) {
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: (res: any) => onGoogleCredential?.(res),
-          });
-          googleInitialized = true;
-        }
-        // Google takes a fixed pixel width (200–400); match the card so it never
-        // overflows a phone (a hardcoded 320 stuck out of the ~280px card)
-        const width = Math.round(Math.min(400, Math.max(200, googleHolder.current.offsetWidth || 320)));
-        window.google.accounts.id.renderButton(googleHolder.current, {
-          theme: "outline", size: "large", shape: "pill",
-          text: action === "Sign up" ? "signup_with" : "signin_with",
-          width,
-        });
-      })
-      .catch(() => { if (!cancelled) setError("Could not load Google sign-in."); });
-
-    return () => { cancelled = true; onGoogleCredential = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
-  }, [googleEnabled]);
+  // Google by redirect (lib/googleAuth.ts) — returns to /auth/google/callback
+  const googleEnabled = available.some((p) => p.id === "google");
+  const withGoogle = () => {
+    setError(""); setBusy("google");
+    try {
+      startGoogleSignIn(GOOGLE_CLIENT_ID);
+    } catch {
+      fail("Could not start Google sign-in. Please try again.");
+    }
+  };
 
   const withApple = async () => {
     setError(""); setBusy("apple");
@@ -232,26 +204,23 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
         </div>
       )}
 
-      {/* Our button, styled like Apple / Telegram, with Google's real button laid over it
-          (transparent) so clicks still go to Google. Google's own rendering switches to a
-          personalized "Sign in as …" card once it knows the account, which broke the layout. */}
       {googleEnabled && (
-        <div className="relative group" style={{ marginBottom: buttonProviders.length || telegramWidget ? 10 : 0 }}>
-          <div aria-hidden="true" className={`h-10 w-full rounded-full border border-[#dadce0] bg-white group-hover:bg-[#f9f9fa] transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[#0f1013] ${busy ? "opacity-60" : ""}`}>
-            {pending("google") ? (
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : <GoogleMark />}
-            <span>{action} with Google</span>
-          </div>
-          <div
-            ref={googleHolder}
-            className="absolute inset-0 overflow-hidden rounded-full"
-            style={{ opacity: 0, pointerEvents: busy ? "none" : "auto" }}
-          />
-        </div>
+        <button
+          type="button"
+          title={`${action} with Google`}
+          disabled={!!busy}
+          onClick={withGoogle}
+          className="w-full h-10 rounded-full border border-[#dadce0] bg-white hover:bg-[#f9f9fa] disabled:opacity-60 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[#0f1013]"
+          style={{ marginBottom: buttonProviders.length || telegramWidget ? 10 : 0 }}
+        >
+          {pending("google") ? (
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : <GoogleMark />}
+          <span>{action} with Google</span>
+        </button>
       )}
 
       <div className={`grid gap-2.5 ${buttonProviders.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
