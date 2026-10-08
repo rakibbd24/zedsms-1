@@ -232,9 +232,26 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
         </div>
       )}
 
-      {/* Google renders its own branded button */}
+      {/* Our button, styled like Apple / Telegram, with Google's real button laid over it
+          (transparent) so clicks still go to Google. Google's own rendering switches to a
+          personalized "Sign in as …" card once it knows the account, which broke the layout. */}
       {googleEnabled && (
-        <div ref={googleHolder} style={{ display: "flex", justifyContent: "center", marginBottom: buttonProviders.length || telegramWidget ? 10 : 0, minHeight: 40 }} />
+        <div className="relative group" style={{ marginBottom: buttonProviders.length || telegramWidget ? 10 : 0 }}>
+          <div aria-hidden="true" className={`h-10 w-full rounded-full border border-[#dadce0] bg-white group-hover:bg-[#f9f9fa] transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[#0f1013] ${busy ? "opacity-60" : ""}`}>
+            {pending("google") ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : <GoogleMark />}
+            <span>{action} with Google</span>
+          </div>
+          <div
+            ref={googleHolder}
+            className="absolute inset-0 overflow-hidden rounded-full"
+            style={{ opacity: 0, pointerEvents: busy ? "none" : "auto" }}
+          />
+        </div>
       )}
 
       <div className={`grid gap-2.5 ${buttonProviders.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
