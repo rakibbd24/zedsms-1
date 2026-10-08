@@ -60,13 +60,13 @@ export function TelegramCallbackPage() {
     <div className="min-h-screen bg-[#f9f9fa] flex flex-col">
       <Navbar />
       {/* clear the Navbar, which floats over the page (absolute) */}
-      <div className="flex-1 flex items-center justify-center px-4 pt-24 pb-12 md:py-12">
+      <div className="flex-1 flex items-center justify-center px-4 pt-28 pb-12 sm:pt-32 md:pb-16">
         <div className="w-full max-w-[460px] text-center">
           <div className="flex justify-center mb-8">
             <div
               style={{
                 width: 90, height: 90, borderRadius: "50%",
-                background: error ? "linear-gradient(135deg, #D6453A 0%, #EE6B5F 100%)" : "linear-gradient(135deg, #2AABEE 0%, #229ED9 100%)",
+                background: error ? "linear-gradient(135deg, #D6453A 0%, #EE6B5F 100%)" : "linear-gradient(135deg, #2155f5 0%, #5B54E8 100%)",
                 display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 40,
               }}
             >

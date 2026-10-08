@@ -87,7 +87,7 @@ export function VerificationSuccessPage() {
     <div className="min-h-screen bg-[#f9f9fa] flex flex-col">
       <Navbar />
       {/* clear the Navbar, which floats over the page (absolute) */}
-      <div className="flex-1 flex items-center justify-center px-4 pt-24 pb-12 md:py-12">
+      <div className="flex-1 flex items-center justify-center px-4 pt-28 pb-12 sm:pt-32 md:pb-16">
         <div className="w-full max-w-[500px]">
           <div className="flex justify-center mb-8">
             <div
