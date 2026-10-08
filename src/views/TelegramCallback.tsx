@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 // @ts-ignore
 import { finishTelegramOpenId } from "../portal/api/auth";
 import { setNavState } from "../lib/navState";
+import { goToPortal } from "../lib/portalNav";
 
 // Where Telegram's OpenID consent screen sends the browser back to, with
 // ?code&state. The code is handed to our backend, which exchanges it for an
@@ -45,7 +46,7 @@ export function TelegramCallbackPage() {
           setNavState("/auth/verify-otp", { mfaToken: result.mfaToken });
           router.replace("/auth/verify-otp");
         } else {
-          router.replace("/app/home");
+          goToPortal();
         }
       })
       .catch((err: any) => {

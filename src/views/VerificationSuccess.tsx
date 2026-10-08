@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import { useAuthContext } from "../portal/context/AuthContext";
 // @ts-ignore
 import { validateVerificationToken } from "../portal/api/auth";
+import { goToPortal } from "../lib/portalNav";
 
 // Where the emailed verification link lands, after the backend has marked the
 // address verified and redirected back with ?status=...&token=...
@@ -128,7 +129,7 @@ export function VerificationSuccessPage() {
 
             <div className="space-y-3">
               <button
-                onClick={() => router.push(verified && isLoggedIn ? "/app/home" : "/auth/signin")}
+                onClick={() => (verified && isLoggedIn ? goToPortal("/app/home", { replace: false }) : router.push("/auth/signin"))}
                 disabled={status === "checking"}
                 className="w-full bg-[#2155f5] hover:bg-[#1a46d1] disabled:opacity-50 text-white font-display font-medium py-3 rounded-full transition-colors"
               >

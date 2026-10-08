@@ -8,6 +8,7 @@ import SocialAuthButtons from "../components/SocialAuthButtons";
 import Footer from "../components/Footer";
 import { useAuth } from "../portal/hooks/useAuth";
 import { clearNavState, readNavState, setNavState } from "../lib/navState";
+import { goToPortal } from "../lib/portalNav";
 
 const emailValid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const pwChecks = (p: string) => ({
@@ -217,7 +218,7 @@ function SignInPage() {
             setNavState("/auth/verify-otp", { mfaToken: result.mfaToken, email });
             router.replace("/auth/verify-otp");
           } else {
-            setTimeout(() => router.push("/app/home"), 300);
+            setTimeout(() => goToPortal("/app/home", { replace: false }), 300);
           }
         },
         onError: (error: any) => {
@@ -289,7 +290,6 @@ const Requirement = ({ met, children }: { met: boolean; children: React.ReactNod
 );
 
 function SignUpPage() {
-  const router = useRouter();
   const { signup, isSignupLoading } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -318,7 +318,7 @@ function SignUpPage() {
     signup(
       { email: email.trim(), password, password_confirmation: confirm },
       {
-        onSuccess: () => { setTimeout(() => router.push("/app/home"), 300); },
+        onSuccess: () => { setTimeout(() => goToPortal("/app/home", { replace: false }), 300); },
         // the API client throws ApiError(message) — it has no axios-style .response,
         // so reading that always fell back to the generic text and hid the real reason
         onError: (error: any) => {

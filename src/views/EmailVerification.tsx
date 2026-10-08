@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 import { useAuthContext } from "../portal/context/AuthContext";
 // @ts-ignore
 import { getEmailVerifyStatus, resendVerificationEmail } from "../portal/api/auth";
+import { goToPortal } from "../lib/portalNav";
 
 export function EmailVerificationPage() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export function EmailVerificationPage() {
       if (verified && !stopped) {
         clearInterval(timer);
         await refreshUser?.();
-        router.replace("/app/home");
+        goToPortal();
       }
     };
 

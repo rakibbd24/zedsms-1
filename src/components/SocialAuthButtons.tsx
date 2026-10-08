@@ -6,6 +6,7 @@ import { useAuthContext } from "../portal/context/AuthContext";
 import { startTelegramOpenId } from "../portal/api/auth";
 import { env } from "../lib/env";
 import { setNavState } from "../lib/navState";
+import { goToPortal } from "../lib/portalNav";
 
 // Google / Apple / Telegram sign-in, shared by the sign-in and sign-up pages.
 // Each provider is shown only when its client id is configured, so there are
@@ -112,7 +113,7 @@ export default function SocialAuthButtons({ action = "Sign in" }: { action?: str
       setNavState("/auth/verify-otp", { mfaToken: result.mfaToken });
       router.replace("/auth/verify-otp");
     } else {
-      router.replace("/app/home");
+      goToPortal();
     }
   };
   const fail = (message: string) => { setBusy(null); setError(message); };

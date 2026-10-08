@@ -19,9 +19,10 @@ export default function NotFound() {
             <Link href="/" className="lift w-full sm:w-auto inline-flex items-center justify-center bg-[#2155f5] hover:bg-[#1a46d1] rounded-full px-6 py-3 font-display font-medium text-sm text-white">
               Back to home
             </Link>
-            <Link href="/app/home" className="lift w-full sm:w-auto inline-flex items-center justify-center bg-white border border-[#e1e2e9] rounded-full px-6 py-3 font-display font-medium text-sm text-[#0f1013]">
+            {/* a plain link: the portal has to start with a full page load (lib/portalNav.ts) */}
+            <a href="/app/home" className="lift w-full sm:w-auto inline-flex items-center justify-center bg-white border border-[#e1e2e9] rounded-full px-6 py-3 font-display font-medium text-sm text-[#0f1013]">
               Go to dashboard
-            </Link>
+            </a>
           </div>
         </div>
       </div>

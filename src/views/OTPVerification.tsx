@@ -8,6 +8,7 @@ import { useAuthContext } from "../portal/context/AuthContext";
 // @ts-ignore
 import { isMfaChallengeExpired } from "../portal/api/auth";
 import { clearNavState, readNavState, setNavState } from "../lib/navState";
+import { goToPortal } from "../lib/portalNav";
 
 // Second step of a 2FA sign-in. /login issued a short-lived challenge instead of
 // a token; it is exchanged here for the real one with an authenticator code or a
@@ -55,7 +56,7 @@ export function OTPVerificationPage() {
             : { mfaToken: challenge.mfaToken, otp },
           {
             onSuccess: () => {
-              router.replace("/app/home");
+              goToPortal();
               resolve();
             },
             onError: (err: any) => {

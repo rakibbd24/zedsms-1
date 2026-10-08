@@ -45,12 +45,12 @@ export default function Navbar() {
           </div>
           <div className="flex items-center gap-2">
             {isLoggedIn ? (
-              <Link href="/app/home" className="lift inline-flex items-center gap-2 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full pl-1.5 pr-4 sm:pr-[22px] py-1.5 font-display font-medium text-sm text-white whitespace-nowrap">
+              <a href="/app/home" className="lift inline-flex items-center gap-2 bg-[#2155f5] hover:bg-[#1a46d1] rounded-full pl-1.5 pr-4 sm:pr-[22px] py-1.5 font-display font-medium text-sm text-white whitespace-nowrap">
                 <span aria-hidden="true" className="flex items-center justify-center size-7 sm:size-8 rounded-full bg-white/20 text-xs font-semibold">
                   {initial}
                 </span>
                 Dashboard
-              </Link>
+              </a>
             ) : (
               <>
                 <Link href="/auth/signin" className="lift hidden sm:inline-flex border border-[#e1e2e9] rounded-full px-[22px] py-3 font-display font-medium text-sm text-[#090a0b]">
