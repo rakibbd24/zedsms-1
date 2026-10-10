@@ -5,7 +5,8 @@ module.exports = {
   apps: [
     {
       name: "zedsms-web",
-      cwd: `${__dirname}/.next/standalone`,
+      // .live is a copy of .next/standalone made by scripts/deploy.sh, so a rebuild never blanks the site
+      cwd: `${__dirname}/.live`,
       script: "server.js",
       env: { NODE_ENV: "production", PORT: "3005", HOSTNAME: "127.0.0.1" },
       instances: 1,

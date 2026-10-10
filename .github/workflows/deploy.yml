@@ -1,0 +1,32 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# one deploy at a time; a newer push waits for the running one instead of cutting it off mid-build
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pull, build and restart on the server 🚀
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 20m
+          # The server pins this key to the same command in ~zedsms/.ssh/authorized_keys
+          # (command="..."), so a leaked key can only trigger a deploy of main.
+          script: |
+            set -e
+            # login shell so node, npm and pm2 are on PATH
+            bash -lc 'cd ~/zedsms-web && git fetch origin main && git reset --hard origin/main && ./scripts/deploy.sh'

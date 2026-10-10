@@ -106,11 +106,21 @@ Needs `mod_proxy` and `mod_proxy_http` (WHM → EasyApache 4 → Apache Modules)
 
 ### Updating the site
 
+Every push to `main` deploys automatically (`.github/workflows/deploy.yml`): GitHub Actions
+SSHes in as the cPanel user and runs `scripts/deploy.sh`, which builds, copies the build to
+`.live/` (what PM2 runs) and restarts `zedsms-web`. The old build keeps serving until the new
+one is ready; a failed build leaves the site untouched. Re-run it from the Actions tab
+(**Run workflow**) or by hand:
+
 ```bash
-cd ~/zedsms-web && git pull && ./scripts/build-standalone.sh
-pm2 restart zedsms-web            # option B
-# option A: cPanel → Application Manager → Restart
+cd ~/zedsms-web && git pull && ./scripts/deploy.sh      # option B
 ```
+
+Repository secrets (GitHub → Settings → Secrets and variables → Actions): `SSH_HOST`,
+`SSH_PORT`, `SSH_USERNAME` (the cPanel user) and `SSH_PRIVATE_KEY` (a key whose public half is
+in that user's `~/.ssh/authorized_keys`; the user needs shell access in WHM).
+
+Option A: `./scripts/build-standalone.sh`, then cPanel → Application Manager → Restart.
 
 ## Project layout
 
