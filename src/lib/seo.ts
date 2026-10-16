@@ -5,6 +5,7 @@ export const SITE_URL = "https://zedsms.com";
 export const SITE_NAME = "ZEDSMS";
 export const APP_STORE_URL = "https://apps.apple.com/gb/app/zedsms-second-phone-number/id6763044238";
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.app.zedsms";
+export const HELP_CENTER_URL = "https://help.zedsms.com/";
 
 const OG_IMAGE = { url: "/og-image.jpg", width: 1200, height: 630, alt: "ZEDSMS — Your second phone number, ready in minutes" };
 

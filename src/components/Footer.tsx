@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HELP_CENTER_URL } from "../lib/seo";
 
 // images live in public/assets/ (served from the site root)
 const imgLogoMark = "/assets/footer/logo-mark.svg";
@@ -23,7 +24,7 @@ const socials = [
 const linkGroups = [
   { title: "COMPANY", links: [{ label: "Home", href: "/" }, { label: "Features", href: "/features" }, { label: "Pricing", href: "/pricing" }, { label: "About", href: "/about" }] },
   { title: "LEGAL", links: [{ label: "Terms & Conditions", href: "/terms-of-service" }, { label: "Privacy Policy", href: "/privacy-policy" }] },
-  { title: "SUPPORT", links: [{ label: "support@zedsms.com", href: "mailto:support@zedsms.com" }, { label: "FAQ", href: "/#faq" }, { label: "Contact", href: "mailto:support@zedsms.com" }] },
+  { title: "SUPPORT", links: [{ label: "support@zedsms.com", href: "mailto:support@zedsms.com" }, { label: "Help Center", href: HELP_CENTER_URL }, { label: "FAQ", href: "/#faq" }, { label: "Contact", href: "/contact" }] },
 ];
 
 export default function Footer() {
