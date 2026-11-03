@@ -14,7 +14,7 @@ import { api } from "./client";
 //     GET  /private-number-countries           → countries with a price table
 //     GET  /telnyx/available-numbers  (US, CA)   ┐
 //     GET  /pivotel/available-numbers (AU)       ├ pick a specific number
-//     GET  /cloud-numbers/available   (others)   ┘
+//     (CloudNumbering, others: no listing — auto-assigned at purchase) ┘
 //     GET  /private-number-plans?country_id    → plans (id is the rent_time_id)
 //     POST /user/purchase-number { mobile_number_type_id: 2, rent_time_id, phone_number | number_sid }
 //
@@ -164,11 +164,8 @@ export async function getPrivateAvailableNumbers({ iso, state, page = 0 }) {
       const data = unwrap(await api.get(`/pivotel/available-numbers${qs({ page })}`), "Could not search numbers");
       return (data || []).map((n) => ({ key: n, number: n, detail: "", payload: { phone_number: n } }));
     }
-    const data = unwrap(await api.get(`/cloud-numbers/available${qs({ limit: 20 })}`), "Could not search numbers");
-    // the cloud pool isn't queried by country, so drop entries from other countries
-    return (data || [])
-      .filter((n) => !n.countryIso || n.countryIso.toLowerCase() === iso.toLowerCase())
-      .map((n) => ({ key: n.sid, number: n.e164, detail: "", payload: { number_sid: n.sid } }));
+    // CloudNumbering (UK…) numbers are never listed — the backend allocates one at purchase
+    return [];
   } catch (err) {
     throw new Error(reasonOf(err, "Could not search numbers"));
   }

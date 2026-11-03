@@ -66,7 +66,10 @@ export const BuyScreen = ({ setRoute, openNumber }) => {
 
   const upstream = isPrivate && country ? privateUpstreamOf(country.iso) : null;
   const isUS = isPrivate && country?.iso === "us";
-  const privateNumbers = usePrivateAvailableNumbers({ iso: isPrivate ? country?.iso : null, state: isUS ? usState : undefined, page });
+  // CloudNumbering countries (UK…) are auto-assigned: choosing a specific number costs us extra,
+  // so the picker and the available-numbers lookup are not used at all
+  const isAuto = upstream === "cloud";
+  const privateNumbers = usePrivateAvailableNumbers({ iso: isPrivate && !isAuto ? country?.iso : null, state: isUS ? usState : undefined, page });
   const privatePlans = usePrivatePlans(isPrivate ? country?.id : null);
 
   const sharedServices = useSharedServices(!isPrivate ? country?.id : null);
@@ -133,10 +136,10 @@ export const BuyScreen = ({ setRoute, openNumber }) => {
   const plansError = isPrivate ? privatePlans.error : rentTimes.error;
 
   const insufficient = balanceKnown && !!plan && total > balance + 0.0001;
-  const ready = !!country && !!picked && !!plan && (isPrivate || !!svc);
+  const ready = !!country && (isAuto || !!picked) && !!plan && (isPrivate || !!svc);
   const blocker = !country ? "Choose a country"
     : !isPrivate && !svc ? "Choose a service"
-    : !picked ? "Pick a number"
+    : !picked && !isAuto ? "Pick a number"
     : !plan ? "Choose a plan"
     : insufficient ? `Add $${(total - balance).toFixed(2)} to your balance`
     : null;
@@ -155,7 +158,7 @@ export const BuyScreen = ({ setRoute, openNumber }) => {
   const confirmPurchase = () => {
     if (!agreed || processing || !ready || insufficient) return;
     const payload = isPrivate
-      ? { mobile_number_type_id: 2, rent_time_id: plan.id, ...picked.payload }
+      ? { mobile_number_type_id: 2, rent_time_id: plan.id, ...(isAuto ? {} : picked.payload) }
       : { mobile_number_type_id: 1, mobile_number_id: picked.id, rent_time_id: plan.id };
     purchase.mutate(payload, {
       onSuccess: (data) => {
@@ -282,10 +285,10 @@ export const BuyScreen = ({ setRoute, openNumber }) => {
           return (
             <Card style={{ padding: 18 }}>
               <StepTitle n={step.number} sub={isPrivate
-                ? (isUS ? "Pick a state to get its area codes, or leave it on any state." : "These numbers are available right now. The one you pick is yours.")
+                ? (isAuto ? "Your number is assigned automatically when you purchase." : isUS ? "Pick a state to get its area codes, or leave it on any state." : "These numbers are available right now. The one you pick is yours.")
                 : `Free ${svc.name} numbers in ${country.name}. Digits are partly hidden until the number is yours.`}
-                right={isPrivate && <Button size="sm" variant="soft" icon="layers" className="desktop-only" onClick={() => setBulkOpen(true)}>Bulk order</Button>}>
-                Pick your number
+                right={isPrivate && !isAuto && <Button size="sm" variant="soft" icon="layers" className="desktop-only" onClick={() => setBulkOpen(true)}>Bulk order</Button>}>
+                {isAuto ? "Your number" : "Pick your number"}
               </StepTitle>
 
               {isUS && (
@@ -296,12 +299,13 @@ export const BuyScreen = ({ setRoute, openNumber }) => {
                 </div>
               )}
 
-              {q.isFetching && numberItems.length === 0 ? <BuyNotice tone="accent">Searching available numbers…</BuyNotice>
+              {isAuto ? <BuyNotice>Numbers are assigned automatically at purchase.</BuyNotice>
+                : q.isFetching && numberItems.length === 0 ? <BuyNotice tone="accent">Searching available numbers…</BuyNotice>
                 : q.error ? <BuyNotice tone="danger" action={<Button size="sm" variant="subtle" onClick={() => q.refetch()}>Retry</Button>}>{q.error.message}</BuyNotice>
                 : numberItems.length === 0 ? <BuyNotice>{isPrivate ? `No numbers available in ${where} right now.${isUS && usState ? " Try another state." : " Try again shortly."}` : `No free ${svc.name} numbers in ${country.name} right now. Try another service or country.`}</BuyNotice>
                 : <NumberGrid items={numberItems} pickedKey={picked?.key} onPick={setPicked} />}
 
-              {numberItems.length > 0 && (
+              {numberItems.length > 0 && !isAuto && (
                 <div className="buy-num-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 13, gap: 10 }}>
                   <span className="tnum" style={{ fontSize: 12, color: "var(--text-faint)" }}>{numberItems.length} available in {where}</span>
                   {isPrivate && (
@@ -356,7 +360,7 @@ export const BuyScreen = ({ setRoute, openNumber }) => {
             : <ServiceLogo service={svc} size={42} />}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className={picked ? "mono tnum" : undefined} style={{ fontSize: 14, fontWeight: 550, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {picked ? picked.number : !isPrivate && svc ? svc.name : "Pick a number"}
+              {isAuto ? "Number auto-assigned" : picked ? picked.number : !isPrivate && svc ? svc.name : "Pick a number"}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", overflow: "hidden" }}>
               {country ? (isUS && usState ? `${stateName}, ${country.name}` : country.name) : "No country"}{isPrivate ? " · Private" : svc ? ` · ${svc.name}` : " · Shared"}
